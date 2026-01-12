@@ -8,27 +8,7 @@ def get_db_connection():
     conn = sqlite3.connect('database.db')
     return conn
 
-# ======================== REGISTRO ========================
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        email = request.form['email']
-        senha = request.form['senha']
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
-            (email, senha, 0)
-        )
-        conn.commit()
-        conn.close()
-
-        return "Usuário cadastrado com sucesso!"
-
-    return render_template('register.html')
-
-# ======================== LOGIN/LOGOUT ========================
+# ======================== LOGIN ========================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -54,11 +34,30 @@ def login():
 
     return render_template('login.html')
 
+# ======================== LOGOUT ========================
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# ======================== REGISTRO ========================
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form['email']
+        senha = request.form['senha']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
+            (email, senha, 0)
+        )
+        conn.commit()
+        conn.close()
+        return "Usuário cadastrado com sucesso!"
+
+    return render_template('register.html')
 
 # ======================== DASHBOARD ========================
 @app.route('/dashboard')
@@ -99,33 +98,29 @@ def create_ticket():
         )
         conn.commit()
         conn.close()
-
         return redirect(url_for('dashboard'))
     
     return render_template('create_ticket.html')
 
+# ======================== STATUS TICKET ========================
 @app.route('/update-status/<int:ticket_id>/<status>')
 def update_status(ticket_id, status):
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    
+    if not session.get('is_admin'):
+        return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    if session.get('is_admin'):
-        cursor.execute(
-            "UPDATE tickets SET status = ? WHERE id = ?",
-            (status, ticket_id)
-        )
-    else:
-        cursor.execute(
-        "UPDATE tickets SET status = ? WHERE id = ? AND user_id = ?",
-        (status, ticket_id, session['user_id'])
+    cursor.execute(
+        "UPDATE tickets SET status = ? WHERE id = ?",
+        (status, ticket_id)
     )
         
     conn.commit()
     conn.close()
-
+    
     return redirect(url_for('dashboard'))
 
 # ======================== INICIAR API ========================

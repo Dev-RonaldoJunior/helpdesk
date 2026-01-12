@@ -29,12 +29,14 @@
                     {{ ticket[2] }}<br>
                     <em>Status: {{ ticket[3] }}</em><br>
 
-                    <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Em andamento') }}">
-                        Em andamento
-                    </a> |
-                    <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Fechado') }}">
-                        Fechar
-                    </a>
+                    {% if session.is_admin %}
+                        <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Em andamento') }}">
+                            Em andamento
+                        </a> |
+                        <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Fechado') }}">
+                            Fechar
+                        </a>
+                    {% endif %}
                 </li>
                 <hr>
             {% endfor %}
