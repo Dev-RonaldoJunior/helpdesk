@@ -123,6 +123,26 @@ def update_status(ticket_id, status):
     
     return redirect(url_for('dashboard'))
 
+# ======================== DELETE TICKET ========================
+@app.route('/delete-ticket/<int:ticket_id>')
+def delete_ticket(ticket_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if not session.get('is_admin'):
+        return redirect(url_for('dashboard'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM tickets WHERE id = ?",
+        (ticket_id,)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('dashboard'))
+
 # ======================== INICIAR API ========================
 if __name__ == '__main__':
     app.run(debug=True)

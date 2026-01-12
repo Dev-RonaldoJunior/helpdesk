@@ -35,6 +35,10 @@
                         </a> |
                         <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Fechado') }}">
                             Fechar
+                        </a> |
+                        <a href="{{ url_for('delete_ticket', ticket_id=ticket[0]) }}"
+                            onclick="return confirm('Tem certeza que deseja excluir este chamado?');">
+                            Excluir
                         </a>
                     {% endif %}
                 </li>
