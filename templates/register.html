@@ -8,21 +8,21 @@
 </head>
 <body>
 
-    <h1>Cadastro - Help Desk</h1>
+<h1>Cadastro - Help Desk</h1>
 
-    <form method="POST">
-        <label>Email:</label><br>
-        <input type="email" name="email" required><br><br>
+<form method="POST" autocomplete="off">
+    <label for="email">Email:</label><br>
+    <input type="email" id="email" name="email" required><br><br>
 
-        <label>Senha:</label><br>
-        <input type="password" name="senha" required><br><br>
+    <label for="senha">Senha:</label><br>
+    <input type="password" id="senha" name="senha" minlength="6" required><br><br>
 
-        <button type="submit">Cadastrar</button>
-    </form>
+    <button type="submit">Cadastrar</button>
+</form>
 
-    <p>
-        <a href="{{ url_for('login') }}">Voltar para o login</a>
-    </p>
+<p>
+    <a href="{{ url_for('login') }}">Voltar para o login</a>
+</p>
 
 </body>
 </html>

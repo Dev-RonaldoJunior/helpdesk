@@ -1,23 +1,24 @@
 import sqlite3
 # is_admin: 0 = usuário | 1 = atendente | 2 = admin
 
-
 conn = sqlite3.connect('database.db')
 cursor = conn.cursor()
 
+email = 'atendente@atendente.com'
+
 cursor.execute(
     "SELECT id FROM users WHERE email = ?",
-    ('admin@admin.com',)
+    (email,)
 )
 
 if not cursor.fetchone():
     cursor.execute(
         "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
-        ('admin@admin.com', 'admin@123', 2)
+        (email, 'atendente@123', 1)
     )
     conn.commit()
-    print("Admin criado com sucesso!")
+    print("Usuário atendente criado com sucesso!")
 else:
-    print("Admin já existe!")
+    print("Usuário atendente já existe!")
 
 conn.close()

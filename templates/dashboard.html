@@ -8,57 +8,79 @@
 </head>
 <body>
 
-    <h1>Dashboard - Help Desk</h1>
+<h1>Dashboard - Help Desk</h1>
 
-    {% if session.is_admin %}
-        <p><strong>Perfil:</strong> Administrador</p>
-    {% else %}
-        <p><strong>Perfil:</strong> Usuário</p>
-    {% endif %}
+{% if session.get('nivel') == 2 %}
+    <p><strong>Perfil:</strong> Administrador</p>
+{% elif session.get('nivel') == 1 %}
+    <p><strong>Perfil:</strong> Atendente</p>
+{% else %}
+    <p><strong>Perfil:</strong> Usuário</p>
+{% endif %}
 
+<p>Bem-vindo ao sistema de chamados!</p>
 
-    <p>Bem-vindo ao sistema de chamados!</p>
+<h3>Chamados</h3>
 
-    <h3>Meus chamados</h3>
+{% if tickets %}
+<ul>
+{% for ticket in tickets %}
+    <li>
+        <strong>{{ ticket[1] }}</strong><br>
+        {{ ticket[2] }}<br>
 
-    {% if tickets %}
-        <ul>
-            {% for ticket in tickets %}
-                <li>
-                    <strong>{{ ticket[1] }}</strong><br>
-                    {{ ticket[2] }}<br>
+        <small>
+            Criado por: {{ ticket[7] }}<br>
+            Criado em: {{ ticket[4] }}<br>
 
-                    <small>
-                        Criado por: {{ ticket[5] }}<br>
-                        Criado na data: {{ ticket[4] }}
-                    </small><br>
+            {% if ticket[5] %}
+                Atendimento iniciado: {{ ticket[5] }}<br>
+            {% endif %}
 
-                    <em>Status: {{ ticket[3] }}</em><br>
+            {% if ticket[6] %}
+                Fechado em: {{ ticket[6] }}<br>
+            {% endif %}
 
-                    {% if session.get('is_admin') %}
-                        <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Em andamento') }}">
-                            Em andamento
-                        </a> |
-                        <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Fechado') }}">
-                            Fechar
-                        </a> |
-                        <a href="{{ url_for('delete_ticket', ticket_id=ticket[0]) }}"
-                        onclick="return confirm('Deseja excluir este chamado?');">
-                            Excluir
-                        </a>
-                    {% endif %}
-                </li>
-                <hr>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>Você ainda não criou nenhum chamado.</p>
-    {% endif %}
+            {% if ticket[8] %}
+                Atendente: {{ ticket[8] }}<br>
+            {% endif %}
+        </small>
 
-    <br>
+        <em>Status: {{ ticket[3] }}</em><br>
 
-    <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a><br>
-    <a href="{{ url_for('logout') }}">Logout</a>
+        <!-- BOTÕES POR NÍVEL -->
+        {% if session.get('nivel') in [1, 2] %}
+
+            {% if ticket[3] == 'Aberto' %}
+                <a href="{{ url_for('start_ticket', ticket_id=ticket[0]) }}">
+                    Iniciar atendimento
+                </a>
+            {% endif %}
+
+            {% if ticket[3] == 'Em andamento' %}
+                <a href="{{ url_for('close_ticket', ticket_id=ticket[0]) }}">
+                    Fechar chamado
+                </a>
+            {% endif %}
+
+            <a href="{{ url_for('hide_ticket', ticket_id=ticket[0]) }}"
+               onclick="return confirm('Deseja ocultar este chamado?');">
+                Ocultar
+            </a>
+
+        {% endif %}
+    </li>
+    <hr>
+{% endfor %}
+</ul>
+{% else %}
+    <p>Nenhum chamado encontrado.</p>
+{% endif %}
+
+<br>
+
+<a href="{{ url_for('create_ticket') }}">Criar novo chamado</a><br>
+<a href="{{ url_for('logout') }}">Logout</a>
 
 </body>
 </html>
