@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 
 app = Flask(__name__)
@@ -44,12 +44,17 @@ def login():
         conn.close()
 
         if user:
-            return "Login realizado com sucesso!"
+            return redirect(url_for('dashboard'))
         
         else:
             return "Email ou senha inválidos!"
 
     return render_template('login.html')
+
+# ======================== DASHBOARD ========================
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
 
 # ======================== INICIAR API ========================
 if __name__ == '__main__':
