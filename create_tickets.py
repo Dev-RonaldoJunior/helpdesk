@@ -7,7 +7,8 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS tickets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo TEXT NOT NULL,
-    descricao TEXT NOT NULL
+    descricao TEXT NOT NULL,
+    status TEXT NOT NULL
 )
 """)
 

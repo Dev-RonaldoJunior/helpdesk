@@ -72,8 +72,8 @@ def create_ticket():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO tickets (titulo, descricao) VALUES (?, ?)",
-            (titulo, descricao)
+            "INSERT INTO tickets (titulo, descricao, status) VALUES (?, ?, ?)",
+            (titulo, descricao, 'Aberto')
         )
         conn.commit()
         conn.close()
@@ -81,6 +81,19 @@ def create_ticket():
         return redirect(url_for('dashboard'))
     
     return render_template('create_ticket.html')
+
+@app.route('/update-status/<int:ticket_id>/<status>')
+def update_status(ticket_id, status):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE tickets SET status = ? WHERE id = ?",
+        (status, ticket_id)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('dashboard'))
 
 # ======================== INICIAR API ========================
 if __name__ == '__main__':
