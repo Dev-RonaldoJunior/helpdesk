@@ -12,15 +12,17 @@
 
     <form method="POST">
         <label>Título:</label><br>
-        <input type="text" name="titulo"><br><br>
+        <input type="text" name="titulo" required><br><br>
 
         <label>Descrição:</label><br>
-        <textarea name="descricao"></textarea><br><br>
+        <textarea name="descricao" rows="4" required></textarea><br><br>
 
         <button type="submit">Criar Chamado</button>
     </form>
 
-    <a href="{{ url_for('dashboard') }}">Voltar</a>
-    
+    <p>
+        <a href="{{ url_for('dashboard') }}">Voltar ao dashboard</a>
+    </p>
+
 </body>
 </html>

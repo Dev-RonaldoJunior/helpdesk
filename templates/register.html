@@ -12,14 +12,17 @@
 
     <form method="POST">
         <label>Email:</label><br>
-        <input type="email" name="email"><br><br>
+        <input type="email" name="email" required><br><br>
 
         <label>Senha:</label><br>
-        <input type="password" name="senha"><br><br>
+        <input type="password" name="senha" required><br><br>
 
         <button type="submit">Cadastrar</button>
-        <a href="{{ url_for('login') }}">voltar</a>
     </form>
-    
+
+    <p>
+        <a href="{{ url_for('login') }}">Voltar para o login</a>
+    </p>
+
 </body>
 </html>

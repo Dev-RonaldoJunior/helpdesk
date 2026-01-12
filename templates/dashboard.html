@@ -12,23 +12,34 @@
 
     <p>Bem-vindo ao sistema de chamados!</p>
 
-    <h4>Lista de chamados:</h4>
+    <h3>Meus chamados</h3>
 
-    <ul>
-        {% for ticket in tickets %}
-        <li>
-            <strong>{{ ticket[1] }}</strong><br>
-            <em>Status: {{ ticket[3] }}</em><br>
-            {{ ticket[2] }}<br>
+    {% if tickets %}
+        <ul>
+            {% for ticket in tickets %}
+                <li>
+                    <strong>{{ ticket[1] }}</strong><br>
+                    {{ ticket[2] }}<br>
+                    <em>Status: {{ ticket[3] }}</em><br>
 
-            <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Em andamento') }}">Em andamento</a>
-            <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Fechado') }}">Fechar</a>
-        </li>
-        {% endfor %}
-    </ul>
-    
+                    <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Em andamento') }}">
+                        Em andamento
+                    </a> |
+                    <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Fechado') }}">
+                        Fechar
+                    </a>
+                </li>
+                <hr>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Você ainda não criou nenhum chamado.</p>
+    {% endif %}
+
+    <br>
+
     <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a><br>
-    <a href="{{ url_for('login') }}">Logout</a>
-    
+    <a href="{{ url_for('logout') }}">Logout</a>
+
 </body>
 </html>
