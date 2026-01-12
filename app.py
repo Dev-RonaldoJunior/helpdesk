@@ -30,8 +30,27 @@ def register():
 # ======================== LOGIN ========================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        senha = request.form['senha']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM users WHERE email = ? AND senha = ?",
+            (email, senha)
+        )
+        user = cursor.fetchone()
+        conn.close()
+
+        if user:
+            return "Login realizado com sucesso!"
+        
+        else:
+            return "Email ou senha inválidos!"
+
     return render_template('login.html')
 
-# ======================== INICIAR APP ========================
+# ======================== INICIAR API ========================
 if __name__ == '__main__':
     app.run(debug=True)
