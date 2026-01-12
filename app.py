@@ -54,7 +54,33 @@ def login():
 # ======================== DASHBOARD ========================
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tickets")
+    tickets = cursor.fetchall()
+    conn.close()
+    
+    return render_template('dashboard.html', tickets=tickets)
+
+# ======================== CREATE TICKET ========================
+@app.route('/create-ticket', methods=['GET', 'POST'])
+def create_ticket():
+    if request.method == 'POST':
+        titulo = request.form['titulo']
+        descricao = request.form['descricao']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO tickets (titulo, descricao) VALUES (?, ?)",
+            (titulo, descricao)
+        )
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for('dashboard'))
+    
+    return render_template('create_ticket.html')
 
 # ======================== INICIAR API ========================
 if __name__ == '__main__':

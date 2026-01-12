@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,9 +9,21 @@
 <body>
 
     <h1>Dashboard - Help Desk</h1>
-    <p>Bem-vindo ao sitema de chamados!</p>
 
-    <a href="/login">Sair</a>
+    <p>Bem-vindo ao sistema de chamados!</p>
+
+    <h4>Lista de chamados:</h4>
+    <ul>
+        {% for ticket in tickets %}
+        <li>
+            <strong>{{ ticket[1] }}</strong><br>
+            {{ ticket[2] }}
+        </li>
+        {% endfor %}
+    </ul>
+    
+    <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a>
+    <a href="{{ url_for('login') }}">Logout</a>
     
 </body>
 </html>

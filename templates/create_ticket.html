@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Chamado</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Novo Chamado</h1>
+
+    <form method="POST">
+        <label>Título:</label><br>
+        <input type="text" name="titulo"><br><br>
+
+        <label>Descrição:</label><br>
+        <textarea name="descricao"></textarea><br><br>
+
+        <button type="submit">Criar Chamado</button>
+    </form>
+
+    <a href="{{ url_for('dashboard') }}">Voltar</a>
+    
+</body>
+</html>
