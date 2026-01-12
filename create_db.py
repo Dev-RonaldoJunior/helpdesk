@@ -7,7 +7,8 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL,
-    senha TEXT NOT NULL
+    senha TEXT NOT NULL,
+    is_admin INTEGER NOT NULL
 )
 """)
 

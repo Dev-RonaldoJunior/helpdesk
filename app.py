@@ -18,8 +18,8 @@ def register():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO users (email, senha) VALUES (?, ?)",
-            (email, senha)
+            "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
+            (email, senha, 0)
         )
         conn.commit()
         conn.close()
@@ -46,6 +46,7 @@ def login():
 
         if user:
             session['user_id'] = user[0]
+            session['is_admin'] = user[3]
             return redirect(url_for('dashboard'))
         
         else:
@@ -64,12 +65,18 @@ def logout():
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM tickets WHERE user_id = ?",
-        (session['user_id'],)
+
+    if session.get('is_admin'):
+        cursor.execute("SELECT * FROM tickets")
+    else:
+        cursor.execute(
+            "SELECT * FROM tickets WHERE user_id = ?",
+            (session['user_id'],)
         )
+
     tickets = cursor.fetchall()
     conn.close()
     
@@ -104,10 +111,18 @@ def update_status(ticket_id, status):
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
+
+    if session.get('is_admin'):
+        cursor.execute(
+            "UPDATE tickets SET status = ? WHERE id = ?",
+            (status, ticket_id)
+        )
+    else:
+        cursor.execute(
         "UPDATE tickets SET status = ? WHERE id = ? AND user_id = ?",
         (status, ticket_id, session['user_id'])
     )
+        
     conn.commit()
     conn.close()
 

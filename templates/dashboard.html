@@ -10,6 +10,13 @@
 
     <h1>Dashboard - Help Desk</h1>
 
+    {% if session.is_admin %}
+        <p><strong>Perfil:</strong> Administrador</p>
+    {% else %}
+        <p><strong>Perfil:</strong> Usuário</p>
+    {% endif %}
+
+
     <p>Bem-vindo ao sistema de chamados!</p>
 
     <h3>Meus chamados</h3>
