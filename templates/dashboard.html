@@ -27,9 +27,15 @@
                 <li>
                     <strong>{{ ticket[1] }}</strong><br>
                     {{ ticket[2] }}<br>
+
+                    <small>
+                        Criado por: {{ ticket[5] }}<br>
+                        Criado na data: {{ ticket[4] }}
+                    </small><br>
+
                     <em>Status: {{ ticket[3] }}</em><br>
 
-                    {% if session.is_admin %}
+                    {% if session.get('is_admin') %}
                         <a href="{{ url_for('update_status', ticket_id=ticket[0], status='Em andamento') }}">
                             Em andamento
                         </a> |
@@ -37,7 +43,7 @@
                             Fechar
                         </a> |
                         <a href="{{ url_for('delete_ticket', ticket_id=ticket[0]) }}"
-                            onclick="return confirm('Tem certeza que deseja excluir este chamado?');">
+                        onclick="return confirm('Deseja excluir este chamado?');">
                             Excluir
                         </a>
                     {% endif %}

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'chave-secreta-simples'
@@ -69,12 +70,28 @@ def dashboard():
     cursor = conn.cursor()
 
     if session.get('is_admin'):
-        cursor.execute("SELECT * FROM tickets")
+        cursor.execute("""
+            SELECT tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                users.email
+            FROM tickets
+            JOIN users ON tickets.user_id = users.id
+        """)
     else:
-        cursor.execute(
-            "SELECT * FROM tickets WHERE user_id = ?",
-            (session['user_id'],)
-        )
+        cursor.execute("""
+            SELECT tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                users.email
+            FROM tickets
+            JOIN users ON tickets.user_id = users.id
+            WHERE tickets.user_id = ?
+        """, (session['user_id'],))
 
     tickets = cursor.fetchall()
     conn.close()
@@ -93,8 +110,14 @@ def create_ticket():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO tickets (titulo, descricao, status, user_id) VALUES (?, ?, ?, ?)",
-            (titulo, descricao, 'Aberto', session['user_id'])
+            "INSERT INTO tickets (titulo, descricao, status, user_id, created_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                titulo,
+                descricao,
+                'Aberto',
+                session['user_id'],
+                datetime.now().strftime('%d/%m/%Y %H:%M')
+            )
         )
         conn.commit()
         conn.close()

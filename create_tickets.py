@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     titulo TEXT NOT NULL,
     descricao TEXT NOT NULL,
     status TEXT NOT NULL,
-    user_id INTEGER NOT NULL
+    user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL
 )
 """)
 
