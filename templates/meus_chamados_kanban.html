@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Chamados - Help Desk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>Meus Chamados</h1>
+
+<p><strong>Perfil:</strong> Usuário</p>
+
+<p>
+    <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a> |
+    <a href="{{ url_for('logout') }}">Logout</a>
+</p>
+
+<div class="kanban">
+
+    <!-- COLUNA: ABERTO -->
+    <div class="coluna">
+        <h3>Aberto</h3>
+
+        {% for t in abertos %}
+            <div class="card">
+                <strong>
+                    <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
+                        {{ t[1] }}
+                    </a>
+                </strong>
+
+                <p>{{ t[2] }}</p>
+
+                <small>
+                    <strong>Status:</strong> {{ t[3] }}<br>
+                    <strong>Criado em:</strong> {{ t[4] }}
+                </small>
+            </div>
+        {% else %}
+            <p class="vazio">Nenhum chamado aberto.</p>
+        {% endfor %}
+    </div>
+
+    <!-- COLUNA: EM ANDAMENTO -->
+    <div class="coluna">
+        <h3>Em andamento</h3>
+
+        {% for t in andamento %}
+            <div class="card">
+                <strong>
+                    <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
+                        {{ t[1] }}
+                    </a>
+                </strong>
+
+                <p>{{ t[2] }}</p>
+
+                <small>
+                    <strong>Status:</strong> {{ t[3] }}<br>
+                    <strong>Atendente:</strong> {{ t[9] or "—" }}<br>
+                    <strong>Iniciado em:</strong> {{ t[5] or "—" }}
+                </small>
+            </div>
+        {% else %}
+            <p class="vazio">Nenhum chamado em andamento.</p>
+        {% endfor %}
+    </div>
+
+    <!-- COLUNA: FECHADO -->
+    <div class="coluna">
+        <h3>Fechado</h3>
+
+        {% for t in fechados %}
+            <div class="card">
+                <strong>
+                    <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
+                        {{ t[1] }}
+                    </a>
+                </strong>
+
+                <p>{{ t[2] }}</p>
+
+                <small>
+                    <strong>Status:</strong> {{ t[3] }}<br>
+                    <strong>Fechado em:</strong> {{ t[6] or "—" }}
+                </small>
+            </div>
+        {% else %}
+            <p class="vazio">Nenhum chamado fechado.</p>
+        {% endfor %}
+    </div>
+
+</div>
+
+</body>
+</html>

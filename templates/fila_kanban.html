@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fila de Chamados - Help Desk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>Fila de Chamados</h1>
+
+{% if session.get('nivel') == 2 %}
+    <p><strong>Perfil:</strong> Administrador</p>
+{% else %}
+    <p><strong>Perfil:</strong> Atendente</p>
+{% endif %}
+
+<p>
+    <a href="{{ url_for('logout') }}">Logout</a>
+</p>
+
+<div class="kanban">
+
+    <!-- ==================== COLUNA: ABERTO ==================== -->
+    <div class="coluna">
+        <h3>Aberto</h3>
+
+        {% for t in abertos %}
+            <div class="card">
+                <strong>
+                    <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
+                        {{ t[1] }}
+                    </a>
+                </strong>
+
+                <p>{{ t[2] }}</p>
+
+                <small>
+                    <strong>Criado por:</strong> {{ t[8] }}<br>
+                    <strong>Criado em:</strong> {{ t[4] }}<br>
+                    <strong>Status:</strong> {{ t[3] }}
+                </small>
+
+                <br><br>
+
+                <!-- Atendente/Admin pode iniciar -->
+                <a href="{{ url_for('start_ticket', ticket_id=t[0]) }}">
+                    Iniciar atendimento
+                </a>
+
+                <br>
+
+                <!-- Ocultar -->
+                <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
+                   onclick="return confirm('Deseja ocultar este chamado?');">
+                    Ocultar
+                </a>
+            </div>
+        {% else %}
+            <p class="vazio">Nenhum chamado aberto.</p>
+        {% endfor %}
+    </div>
+
+
+    <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
+    <div class="coluna">
+        <h3>Em andamento</h3>
+
+        {% for t in andamento %}
+            <div class="card">
+                <strong>
+                    <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
+                        {{ t[1] }}
+                    </a>
+                </strong>
+
+                <p>{{ t[2] }}</p>
+
+                <small>
+                    <strong>Criado por:</strong> {{ t[8] }}<br>
+                    <strong>Atendente:</strong> {{ t[9] or "—" }}<br>
+                    <strong>Iniciado em:</strong> {{ t[5] or "—" }}<br>
+                    <strong>Status:</strong> {{ t[3] }}
+                </small>
+
+                <br><br>
+
+                <!-- Fechar -->
+                <a href="{{ url_for('close_ticket', ticket_id=t[0]) }}">
+                    Fechar chamado
+                </a>
+
+                <br>
+
+                <!-- Ocultar -->
+                <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
+                   onclick="return confirm('Deseja ocultar este chamado?');">
+                    Ocultar
+                </a>
+            </div>
+        {% else %}
+            <p class="vazio">Nenhum chamado em andamento.</p>
+        {% endfor %}
+    </div>
+
+
+    <!-- ==================== COLUNA: FECHADO ==================== -->
+    <div class="coluna">
+        <h3>Fechado</h3>
+
+        {% for t in fechados %}
+            <div class="card">
+                <strong>
+                    <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
+                        {{ t[1] }}
+                    </a>
+                </strong>
+
+                <p>{{ t[2] }}</p>
+
+                <small>
+                    <strong>Criado por:</strong> {{ t[8] }}<br>
+                    <strong>Atendente:</strong> {{ t[9] or "—" }}<br>
+                    <strong>Fechado em:</strong> {{ t[6] or "—" }}<br>
+                    <strong>Status:</strong> {{ t[3] }}
+                </small>
+
+                <br><br>
+
+                <!-- Ocultar -->
+                <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
+                   onclick="return confirm('Deseja ocultar este chamado?');">
+                    Ocultar
+                </a>
+            </div>
+        {% else %}
+            <p class="vazio">Nenhum chamado fechado.</p>
+        {% endfor %}
+    </div>
+
+</div>
+
+</body>
+</html>

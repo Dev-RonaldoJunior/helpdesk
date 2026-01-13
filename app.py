@@ -224,12 +224,22 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # Usuário comum vai para "meus chamados"
-    if session.get('nivel') == 0:
+    nivel = session.get('nivel')
+
+    # 0 = usuário
+    if nivel == 0:
         return redirect(url_for('meus_chamados'))
 
-    # Atendente e admin vão para "fila"
-    return redirect(url_for('fila'))
+    # 1 = atendente
+    if nivel == 1:
+        return redirect(url_for('fila'))
+
+    # 2 = admin
+    if nivel == 2:
+        return redirect(url_for('admin'))
+
+    # caso algum usuário esteja com nível inválido
+    return redirect(url_for('logout'))
 
 
     # ============================================================
@@ -611,10 +621,12 @@ def meus_chamados():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
+    if session.get('nivel') != 0:
+        return redirect(url_for('dashboard'))
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Usuário comum: vê apenas os próprios tickets (não ocultos)
     cursor.execute("""
         SELECT
             tickets.id,
@@ -626,13 +638,10 @@ def meus_chamados():
             tickets.closed_at,
             tickets.is_hidden,
             creator.username,
-            attendant.username,
-            hider.username,
-            tickets.hidden_at
+            attendant.username
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
         WHERE tickets.is_hidden = 0
           AND tickets.user_id = ?
         ORDER BY tickets.id DESC
@@ -641,7 +650,17 @@ def meus_chamados():
     tickets = cursor.fetchall()
     conn.close()
 
-    return render_template('meus_chamados.html', tickets=tickets)
+    abertos = [t for t in tickets if t[3] == 'Aberto']
+    andamento = [t for t in tickets if t[3] == 'Em andamento']
+    fechados = [t for t in tickets if t[3] == 'Fechado']
+
+    return render_template(
+        'meus_chamados_kanban.html',
+        abertos=abertos,
+        andamento=andamento,
+        fechados=fechados
+    )
+
 
 
 
@@ -650,69 +669,100 @@ def fila():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # Só atendente ou admin
-    if session.get('nivel') not in [1, 2]:
+    if session.get('nivel') != 1:
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ADMIN vê todos (inclusive ocultos)
-    if session.get('nivel') == 2:
-        cursor.execute("""
-            SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                tickets.is_hidden,
-                creator.username,
-                attendant.username,
-                hider.username,
-                tickets.hidden_at
-            FROM tickets
-            JOIN users AS creator ON tickets.user_id = creator.id
-            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-            ORDER BY tickets.id DESC
-        """)
-    else:
-        # ATENDENTE vê:
-        # - chamados ABERTOS (pra poder pegar)
-        # - chamados dele (em andamento/fechado)
-        cursor.execute("""
-            SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                tickets.is_hidden,
-                creator.username,
-                attendant.username,
-                hider.username,
-                tickets.hidden_at
-            FROM tickets
-            JOIN users AS creator ON tickets.user_id = creator.id
-            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-            WHERE tickets.is_hidden = 0
-              AND (
-                    tickets.status = 'Aberto'
-                    OR tickets.attendant_id = ?
-                  )
-            ORDER BY tickets.id DESC
-        """, (session['user_id'],))
+    # Atendente vê:
+    # - ABERTOS (para pegar)
+    # - EM ANDAMENTO dele
+    # - FECHADOS dele
+    cursor.execute("""
+        SELECT
+            tickets.id,
+            tickets.titulo,
+            tickets.descricao,
+            tickets.status,
+            tickets.created_at,
+            tickets.started_at,
+            tickets.closed_at,
+            tickets.is_hidden,
+            creator.username,
+            attendant.username
+        FROM tickets
+        JOIN users AS creator ON tickets.user_id = creator.id
+        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        WHERE tickets.is_hidden = 0
+          AND (
+                tickets.status = 'Aberto'
+                OR tickets.attendant_id = ?
+              )
+        ORDER BY tickets.id DESC
+    """, (session['user_id'],))
 
     tickets = cursor.fetchall()
     conn.close()
 
-    return render_template('fila.html', tickets=tickets)
+    abertos = [t for t in tickets if t[3] == 'Aberto']
+    andamento = [t for t in tickets if t[3] == 'Em andamento']
+    fechados = [t for t in tickets if t[3] == 'Fechado']
+
+    return render_template(
+        'fila_kanban.html',
+        abertos=abertos,
+        andamento=andamento,
+        fechados=fechados
+    )
+
+
+
+@app.route('/admin')
+def admin():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if session.get('nivel') != 2:
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            tickets.id,
+            tickets.titulo,
+            tickets.descricao,
+            tickets.status,
+            tickets.created_at,
+            tickets.started_at,
+            tickets.closed_at,
+            tickets.is_hidden,
+            creator.username,
+            attendant.username
+        FROM tickets
+        JOIN users AS creator ON tickets.user_id = creator.id
+        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        ORDER BY tickets.id DESC
+    """)
+
+    tickets = cursor.fetchall()
+    conn.close()
+
+    abertos = [t for t in tickets if t[3] == 'Aberto' and t[7] == 0]
+    andamento = [t for t in tickets if t[3] == 'Em andamento' and t[7] == 0]
+    fechados = [t for t in tickets if t[3] == 'Fechado' and t[7] == 0]
+    ocultados = [t for t in tickets if t[7] == 1]
+
+    return render_template(
+        'admin_kanban.html',
+        abertos=abertos,
+        andamento=andamento,
+        fechados=fechados,
+        ocultados=ocultados
+    )
+
 
 # ============================================================
 # INICIAR A APLICAÇÃO
