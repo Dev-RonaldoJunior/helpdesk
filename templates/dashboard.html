@@ -7,25 +7,25 @@
     <!-- Charset para suportar acentos -->
     <meta charset="UTF-8">
 
-    <!-- Responsividade para celular/tablet -->
+    <!-- Responsividade (celular / tablet) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Título da aba do navegador -->
     <title>Dashboard - Help Desk</title>
 
-    <!-- Importa o CSS dentro da pasta static do Flask -->
+    <!-- Importa o CSS dentro da pasta /static do Flask -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-    <!-- Título principal -->
+    <!-- Título principal da página -->
     <h1>Dashboard - Help Desk</h1>
 
     <!-- =======================================================
-         MOSTRA O PERFIL DO USUÁRIO LOGADO
+         PERFIL DO USUÁRIO LOGADO (NÍVEL)
          session.get('nivel'):
-         0 = Usuário
+         0 = Usuário comum
          1 = Atendente
          2 = Administrador
          ======================================================= -->
@@ -37,124 +37,166 @@
         <p><strong>Perfil:</strong> Usuário</p>
     {% endif %}
 
-    <!-- Mensagem de boas-vindas -->
+    <!-- Mensagem simples -->
     <p>Bem-vindo ao sistema de chamados!</p>
 
-    <!-- Título da seção de chamados -->
+    <!-- Título da seção -->
     <h3>Lista de chamados</h3>
 
     <!-- =======================================================
          LISTA DE CHAMADOS
-         A variável "tickets" vem do backend (Flask) com:
-         ticket[0] = id
-         ticket[1] = titulo
-         ticket[2] = descricao
-         ticket[3] = status (Aberto / Em andamento / Fechado)
-         ticket[4] = created_at
-         ticket[5] = started_at
-         ticket[6] = closed_at
-         ticket[7] = is_hidden (0 visível / 1 oculto)
-         ticket[8] = email do criador
-         ticket[9] = email do atendente (pode ser None)
+         A variável "tickets" vem do backend (Flask) no render_template
+
+         IMPORTANTE:
+         O backend precisa retornar os campos na ordem correta,
+         pois aqui você está usando ticket[0], ticket[1], etc.
+
+         Ordem esperada pelo seu HTML:
+
+         ticket[0]  = tickets.id
+         ticket[1]  = tickets.titulo
+         ticket[2]  = tickets.descricao
+         ticket[3]  = tickets.status
+         ticket[4]  = tickets.created_at
+         ticket[5]  = tickets.started_at
+         ticket[6]  = tickets.closed_at
+         ticket[7]  = tickets.is_hidden
+         ticket[8]  = creator.email
+         ticket[9]  = attendant.email
+
+         >>> NOVOS CAMPOS (para ocultação):
+         ticket[10] = hidden_by.email (quem ocultou)
+         ticket[11] = tickets.hidden_at (quando ocultou)
+
+         (Esses dois campos só aparecem se você adicionou eles no SELECT!)
          ======================================================= -->
 
     {% if tickets %}
-        <!-- Lista não ordenada para exibir os tickets -->
+        <!-- Lista não ordenada -->
         <ul>
 
-            <!-- Loop para percorrer cada ticket -->
+            <!-- Percorre cada ticket -->
             {% for ticket in tickets %}
                 <li>
 
-                    <!-- Título do chamado -->
+                    <!-- Título do ticket -->
                     <strong>{{ ticket[1] }}</strong><br>
 
-                    <!-- Descrição do chamado -->
+                    <!-- Descrição do ticket -->
                     {{ ticket[2] }}<br><br>
 
                     <!-- =======================================================
-                         DETALHES DO CHAMADO
-                         (informações extras com fonte menor)
+                         DADOS DO CHAMADO (INFORMAÇÕES IMPORTANTES)
                          ======================================================= -->
                     <small>
                         <!-- Email do criador -->
-                        Criado por: {{ ticket[8] }}<br>
+                        <strong>Criado por:</strong> {{ ticket[8] }}<br>
 
                         <!-- Data/hora de criação -->
-                        Criado em: {{ ticket[4] }}<br>
+                        <strong>Criado em:</strong> {{ ticket[4] }}<br>
 
-                        <!-- Se tiver data de início do atendimento -->
-                        {% if ticket[5] %}
-                            Atendimento iniciado: {{ ticket[5] }}<br>
-                        {% endif %}
-
-                        <!-- Se tiver data de fechamento -->
-                        {% if ticket[6] %}
-                            Fechado em: {{ ticket[6] }}<br>
-                        {% endif %}
-
-                        <!-- Se existir atendente atribuído -->
+                        <!-- Email do atendente (se existir) -->
                         {% if ticket[9] %}
-                            Atendente: {{ ticket[9] }}<br>
+                            <strong>Atendente:</strong> {{ ticket[9] }}<br>
+                        {% endif %}
+
+                        <!-- Data/hora do início do atendimento (se existir) -->
+                        {% if ticket[5] %}
+                            <strong>Atendimento iniciado:</strong> {{ ticket[5] }}<br>
+                        {% endif %}
+
+                        <!-- Data/hora do fechamento (se existir) -->
+                        {% if ticket[6] %}
+                            <strong>Fechado em:</strong> {{ ticket[6] }}<br>
                         {% endif %}
                     </small>
 
-                    <br>
+                    <br><br>
 
                     <!-- =======================================================
                          STATUS DO CHAMADO
-                         Se estiver oculto (is_hidden = 1), mostra "Ocultado"
-                         Caso contrário mostra o status real do ticket
+                         Se is_hidden = 1, mostra como "Ocultado"
+                         Caso contrário mostra o status normal
                          ======================================================= -->
                     {% if ticket[7] == 1 %}
-                        <em>Status: Ocultado</em><br>
+                        <em><strong>Status:</strong> Ocultado</em><br>
                     {% else %}
-                        <em>Status: {{ ticket[3] }}</em><br>
+                        <em><strong>Status:</strong> {{ ticket[3] }}</em><br>
                     {% endif %}
 
                     <br>
 
                     <!-- =======================================================
-                         BOTÕES DE AÇÃO (POR NÍVEL)
-                         Só atendente (1) e admin (2) podem mexer no chamado:
-                         - iniciar atendimento
-                         - fechar chamado
-                         - ocultar chamado
+                         INFO EXTRA DE OCULTAÇÃO (SÓ ADMIN VÊ)
+                         Aparece apenas se:
+                         - usuário for admin (nivel 2)
+                         - ticket estiver oculto (is_hidden = 1)
+                         ======================================================= -->
+                    {% if session.get('nivel') == 2 and ticket[7] == 1 %}
+                        <small>
+
+                            <!-- Quem ocultou o ticket -->
+                            <strong>Ocultado por:</strong>
+                            {% if ticket[10] %}
+                                {{ ticket[10] }}
+                            {% else %}
+                                (não registrado)
+                            {% endif %}
+                            <br>
+
+                            <!-- Quando foi ocultado -->
+                            <strong>Ocultado em:</strong>
+                            {% if ticket[11] %}
+                                {{ ticket[11] }}
+                            {% else %}
+                                (não registrado)
+                            {% endif %}
+
+                        </small>
+                        <br><br>
+                    {% endif %}
+
+                    <!-- =======================================================
+                         BOTÕES DE AÇÃO (ATENDENTE E ADMIN)
+                         Somente nível 1 e 2 conseguem fazer ações
                          ======================================================= -->
                     {% if session.get('nivel') in [1, 2] %}
 
-                        <!-- Se o ticket estiver ABERTO e VISÍVEL, mostra "Iniciar atendimento" -->
-                        {% if ticket[3] == 'Aberto' and ticket[7] == 0 %}
-                            <a href="{{ url_for('start_ticket', ticket_id=ticket[0]) }}">
-                                Iniciar atendimento
-                            </a>
-                            <br>
-                        {% endif %}
-
-                        <!-- Se o ticket estiver EM ANDAMENTO e VISÍVEL, mostra "Fechar chamado" -->
-                        {% if ticket[3] == 'Em andamento' and ticket[7] == 0 %}
-                            <a href="{{ url_for('close_ticket', ticket_id=ticket[0]) }}">
-                                Fechar chamado
-                            </a>
-                            <br>
-                        {% endif %}
-
-                        <!-- Se o ticket estiver VISÍVEL, permite ocultar -->
+                        <!-- Só mostra botões se o ticket NÃO estiver oculto -->
                         {% if ticket[7] == 0 %}
+
+                            <!-- Se estiver "Aberto", pode iniciar atendimento -->
+                            {% if ticket[3] == 'Aberto' %}
+                                <a href="{{ url_for('start_ticket', ticket_id=ticket[0]) }}">
+                                    Iniciar atendimento
+                                </a>
+                                <br>
+                            {% endif %}
+
+                            <!-- Se estiver "Em andamento", pode fechar -->
+                            {% if ticket[3] == 'Em andamento' %}
+                                <a href="{{ url_for('close_ticket', ticket_id=ticket[0]) }}">
+                                    Fechar chamado
+                                </a>
+                                <br>
+                            {% endif %}
+
+                            <!-- Ocultar chamado (soft delete) -->
                             <a href="{{ url_for('hide_ticket', ticket_id=ticket[0]) }}"
                                onclick="return confirm('Deseja ocultar este chamado?');">
                                 Ocultar
                             </a>
                             <br>
+
                         {% endif %}
 
                     {% endif %}
 
                     <!-- =======================================================
-                         DESOCULTAR (SOMENTE ADMIN)
-                         Só aparece se:
-                         - usuário for admin (nível 2)
-                         - ticket estiver oculto (is_hidden = 1)
+                         BOTÃO DESOCULTAR (SÓ ADMIN)
+                         Aparece apenas se:
+                         - admin (nivel 2)
+                         - ticket oculto (is_hidden = 1)
                          ======================================================= -->
                     {% if session.get('nivel') == 2 and ticket[7] == 1 %}
                         <a href="{{ url_for('unhide_ticket', ticket_id=ticket[0]) }}"
@@ -166,22 +208,23 @@
 
                 </li>
 
-                <!-- Separador visual entre tickets -->
+                <!-- Separador entre chamados -->
                 <hr>
             {% endfor %}
+
         </ul>
 
     {% else %}
-        <!-- Caso não tenha tickets -->
+        <!-- Caso não tenha chamados -->
         <p>Nenhum chamado encontrado.</p>
     {% endif %}
 
     <br>
 
-    <!-- Link para criar um novo ticket -->
+    <!-- Link para criar um novo chamado -->
     <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a><br>
 
-    <!-- Link para sair da conta -->
+    <!-- Logout -->
     <a href="{{ url_for('logout') }}">Logout</a>
 
 </body>

@@ -1,71 +1,75 @@
 import sqlite3
 
 # ============================================================
-# SCRIPT PARA CRIAR A TABELA "tickets" NO BANCO SQLITE
+# SCRIPT PARA CRIAR A TABELA "tickets" (CHAMADOS)
 # ============================================================
 #
-# Essa tabela guarda os chamados (tickets) do sistema.
+# Esse script cria a tabela "tickets" caso ela ainda não exista.
+# Ela guarda os chamados do sistema de Help Desk.
 #
-# Campos principais:
-# - titulo / descricao: informações do chamado
-# - status: controla o andamento do ticket
-# - user_id: quem criou o chamado
-# - attendant_id: quem está atendendo (ou atendeu)
-# - created_at / started_at / closed_at: datas do ciclo do ticket
-# - is_hidden: serve como "soft delete" (ocultar sem apagar)
+# Campos importantes:
 #
-# Regras:
 # status:
 # - "Aberto"
 # - "Em andamento"
 # - "Fechado"
 #
-# is_hidden:
+# is_hidden (soft delete):
 # 0 = visível
 # 1 = oculto
+#
+# hidden_by:
+# - guarda o ID do usuário (atendente/admin) que ocultou o chamado
+#
+# hidden_at:
+# - guarda a data/hora em que o chamado foi ocultado
 #
 # ============================================================
 
 
-# Conecta ao banco de dados SQLite
-# Se o arquivo "database.db" não existir, ele será criado automaticamente
+# Conecta ao banco SQLite (database.db)
+# Se não existir, ele será criado automaticamente
 conn = sqlite3.connect('database.db')
 
-# Cursor é o objeto usado para executar comandos SQL
+# Cursor usado para executar comandos SQL
 cursor = conn.cursor()
 
 
 # ============================================================
-# CRIA A TABELA "tickets" CASO AINDA NÃO EXISTA
+# CRIA A TABELA "tickets" SE NÃO EXISTIR
 # ============================================================
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS tickets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, -- ID único gerado automaticamente
+    id INTEGER PRIMARY KEY AUTOINCREMENT, -- ID único do chamado (auto incremento)
 
-    titulo TEXT NOT NULL,                 -- Título do chamado (obrigatório)
-    descricao TEXT NOT NULL,              -- Descrição do chamado (obrigatória)
+    titulo TEXT NOT NULL,                 -- Título do chamado
+    descricao TEXT NOT NULL,              -- Descrição do problema
 
-    status TEXT NOT NULL,                 -- Status do chamado (Aberto, Em andamento, Fechado)
+    status TEXT NOT NULL,                 -- Status do ticket: Aberto | Em andamento | Fechado
 
-    user_id INTEGER NOT NULL,             -- ID do usuário que criou o ticket
+    user_id INTEGER NOT NULL,             -- ID do usuário que criou o chamado
 
     attendant_id INTEGER,                 -- ID do atendente responsável (pode ser NULL)
 
-    created_at TEXT NOT NULL,             -- Data/hora de criação do chamado (obrigatório)
-    started_at TEXT,                      -- Data/hora que começou o atendimento (pode ser NULL)
-    closed_at TEXT,                       -- Data/hora que foi fechado (pode ser NULL)
+    created_at TEXT NOT NULL,             -- Data/hora de criação do chamado
 
-    is_hidden INTEGER NOT NULL            -- 0 = visível | 1 = oculto
+    started_at TEXT,                      -- Data/hora de início do atendimento (pode ser NULL)
+    closed_at TEXT,                       -- Data/hora de fechamento (pode ser NULL)
+
+    is_hidden INTEGER NOT NULL,           -- 0 = visível | 1 = oculto (soft delete)
+
+    hidden_by INTEGER,                    -- ID de quem ocultou (atendente/admin)
+    hidden_at TEXT                        -- Data/hora que foi ocultado
 )
 """)
 
 
-# Salva as alterações (criação da tabela)
+# Salva a criação no banco
 conn.commit()
 
-# Fecha a conexão com o banco
+# Fecha a conexão
 conn.close()
 
 
-# Mensagem no terminal confirmando que deu certo
+# Mensagem para confirmar
 print("Tabela de chamados criada com sucesso!")
