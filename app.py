@@ -26,6 +26,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 
 
+PER_PAGE = 6
+
 # ============================================================
 # CONFIGURAÇÃO DO APP
 # ============================================================
@@ -618,9 +620,21 @@ def meus_chamados():
     if session.get('nivel') != 0:
         return redirect(url_for('dashboard'))
 
+    page = int(request.args.get('page', 1))
+    offset = (page - 1) * PER_PAGE
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Total de tickets (pra saber se tem próxima página)
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM tickets
+        WHERE is_hidden = 0 AND user_id = ?
+    """, (session['user_id'],))
+    total = cursor.fetchone()[0]
+
+    # Tickets da página
     cursor.execute("""
         SELECT
             tickets.id,
@@ -639,7 +653,8 @@ def meus_chamados():
         WHERE tickets.is_hidden = 0
           AND tickets.user_id = ?
         ORDER BY tickets.id DESC
-    """, (session['user_id'],))
+        LIMIT ? OFFSET ?
+    """, (session['user_id'], PER_PAGE, offset))
 
     tickets = cursor.fetchall()
     conn.close()
@@ -648,13 +663,18 @@ def meus_chamados():
     andamento = [t for t in tickets if t[3] == 'Em andamento']
     fechados = [t for t in tickets if t[3] == 'Fechado']
 
+    has_prev = page > 1
+    has_next = (offset + PER_PAGE) < total
+
     return render_template(
         'meus_chamados_kanban.html',
         abertos=abertos,
         andamento=andamento,
-        fechados=fechados
+        fechados=fechados,
+        page=page,
+        has_prev=has_prev,
+        has_next=has_next
     )
-
 
 
 
@@ -666,13 +686,25 @@ def fila():
     if session.get('nivel') != 1:
         return redirect(url_for('dashboard'))
 
+    page = int(request.args.get('page', 1))
+    offset = (page - 1) * PER_PAGE
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Atendente vê:
-    # - ABERTOS (para pegar)
-    # - EM ANDAMENTO dele
-    # - FECHADOS dele
+    # Total
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM tickets
+        WHERE is_hidden = 0
+          AND (
+                status = 'Aberto'
+                OR attendant_id = ?
+              )
+    """, (session['user_id'],))
+    total = cursor.fetchone()[0]
+
+    # Tickets da página
     cursor.execute("""
         SELECT
             tickets.id,
@@ -684,17 +716,21 @@ def fila():
             tickets.closed_at,
             tickets.is_hidden,
             creator.username,
-            attendant.username
+            attendant.username,
+            hider.username,
+            tickets.hidden_at
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
         WHERE tickets.is_hidden = 0
           AND (
                 tickets.status = 'Aberto'
                 OR tickets.attendant_id = ?
               )
         ORDER BY tickets.id DESC
-    """, (session['user_id'],))
+        LIMIT ? OFFSET ?
+    """, (session['user_id'], PER_PAGE, offset))
 
     tickets = cursor.fetchall()
     conn.close()
@@ -703,12 +739,20 @@ def fila():
     andamento = [t for t in tickets if t[3] == 'Em andamento']
     fechados = [t for t in tickets if t[3] == 'Fechado']
 
+    has_prev = page > 1
+    has_next = (offset + PER_PAGE) < total
+
     return render_template(
         'fila_kanban.html',
         abertos=abertos,
         andamento=andamento,
-        fechados=fechados
+        fechados=fechados,
+        page=page,
+        has_prev=has_prev,
+        has_next=has_next
     )
+
+
 
 
 
@@ -720,9 +764,17 @@ def admin():
     if session.get('nivel') != 2:
         return redirect(url_for('dashboard'))
 
+    page = int(request.args.get('page', 1))
+    offset = (page - 1) * PER_PAGE
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Total
+    cursor.execute("SELECT COUNT(*) FROM tickets")
+    total = cursor.fetchone()[0]
+
+    # Tickets da página
     cursor.execute("""
         SELECT
             tickets.id,
@@ -734,12 +786,16 @@ def admin():
             tickets.closed_at,
             tickets.is_hidden,
             creator.username,
-            attendant.username
+            attendant.username,
+            hider.username,
+            tickets.hidden_at
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
         ORDER BY tickets.id DESC
-    """)
+        LIMIT ? OFFSET ?
+    """, (PER_PAGE, offset))
 
     tickets = cursor.fetchall()
     conn.close()
@@ -749,13 +805,20 @@ def admin():
     fechados = [t for t in tickets if t[3] == 'Fechado' and t[7] == 0]
     ocultados = [t for t in tickets if t[7] == 1]
 
+    has_prev = page > 1
+    has_next = (offset + PER_PAGE) < total
+
     return render_template(
         'admin_kanban.html',
         abertos=abertos,
         andamento=andamento,
         fechados=fechados,
-        ocultados=ocultados
+        ocultados=ocultados,
+        page=page,
+        has_prev=has_prev,
+        has_next=has_next
     )
+
 
 
 # ============================================================

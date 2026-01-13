@@ -43,7 +43,6 @@
         {% endfor %}
     </div>
 
-
     <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
     <div class="coluna">
         <h3>Em andamento</h3>
@@ -69,7 +68,6 @@
         {% endfor %}
     </div>
 
-
     <!-- ==================== COLUNA: FECHADO ==================== -->
     <div class="coluna">
         <h3>Fechado</h3>
@@ -94,6 +92,21 @@
         {% endfor %}
     </div>
 
+</div>
+
+<hr>
+
+<!-- ==================== PAGINAÇÃO ==================== -->
+<div style="text-align: center;">
+    {% if has_prev %}
+        <a href="{{ url_for('meus_chamados', page=page-1) }}">⬅ Anterior</a>
+    {% endif %}
+
+    <strong style="margin: 0 10px;">Página {{ page }}</strong>
+
+    {% if has_next %}
+        <a href="{{ url_for('meus_chamados', page=page+1) }}">Próxima ➡</a>
+    {% endif %}
 </div>
 
 </body>

@@ -44,18 +44,14 @@
 
                 <br><br>
 
-                <!-- Iniciar atendimento -->
                 <a href="{{ url_for('start_ticket', ticket_id=t[0]) }}">
                     Iniciar atendimento
                 </a>
-
-                <!-- Ocultar só aparece se estiver fechado (aqui não aparece) -->
             </div>
         {% else %}
             <p class="vazio">Nenhum chamado aberto.</p>
         {% endfor %}
     </div>
-
 
     <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
     <div class="coluna">
@@ -80,18 +76,14 @@
 
                 <br><br>
 
-                <!-- Fechar chamado -->
                 <a href="{{ url_for('close_ticket', ticket_id=t[0]) }}">
                     Fechar chamado
                 </a>
-
-                <!-- Ocultar só aparece se estiver fechado (aqui não aparece) -->
             </div>
         {% else %}
             <p class="vazio">Nenhum chamado em andamento.</p>
         {% endfor %}
     </div>
-
 
     <!-- ==================== COLUNA: FECHADO ==================== -->
     <div class="coluna">
@@ -116,7 +108,7 @@
 
                 <br><br>
 
-                <!-- Ocultar (SÓ SE ESTIVER FECHADO) -->
+                <!-- Ocultar SÓ quando estiver fechado -->
                 {% if t[3] == 'Fechado' %}
                     <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
                        onclick="return confirm('Deseja ocultar este chamado?');">
@@ -129,6 +121,21 @@
         {% endfor %}
     </div>
 
+</div>
+
+<hr>
+
+<!-- ==================== PAGINAÇÃO ==================== -->
+<div style="text-align: center;">
+    {% if has_prev %}
+        <a href="{{ url_for('fila', page=page-1) }}">⬅ Anterior</a>
+    {% endif %}
+
+    <strong style="margin: 0 10px;">Página {{ page }}</strong>
+
+    {% if has_next %}
+        <a href="{{ url_for('fila', page=page+1) }}">Próxima ➡</a>
+    {% endif %}
 </div>
 
 </body>
