@@ -47,7 +47,31 @@
         {% else %}
             <p class="vazio">Nenhum chamado aberto.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO ABERTOS -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if abertos_has_prev %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page-1,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page,
+                    ocultados_page=ocultados_page
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ abertos_page }}</strong>
+
+            {% if abertos_has_next %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page+1,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page,
+                    ocultados_page=ocultados_page
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
+
 
     <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
     <div class="coluna">
@@ -79,7 +103,31 @@
         {% else %}
             <p class="vazio">Nenhum chamado em andamento.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO ANDAMENTO -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if andamento_has_prev %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page-1,
+                    fechados_page=fechados_page,
+                    ocultados_page=ocultados_page
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ andamento_page }}</strong>
+
+            {% if andamento_has_next %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page+1,
+                    fechados_page=fechados_page,
+                    ocultados_page=ocultados_page
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
+
 
     <!-- ==================== COLUNA: FECHADO ==================== -->
     <div class="coluna">
@@ -104,7 +152,6 @@
 
                 <br><br>
 
-                <!-- Ocultar SÓ quando estiver fechado -->
                 {% if t[3] == 'Fechado' %}
                     <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
                        onclick="return confirm('Deseja ocultar este chamado?');">
@@ -115,7 +162,31 @@
         {% else %}
             <p class="vazio">Nenhum chamado fechado.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO FECHADOS -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if fechados_has_prev %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page-1,
+                    ocultados_page=ocultados_page
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ fechados_page }}</strong>
+
+            {% if fechados_has_next %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page+1,
+                    ocultados_page=ocultados_page
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
+
 
     <!-- ==================== COLUNA: OCULTADOS ==================== -->
     <div class="coluna">
@@ -153,23 +224,31 @@
         {% else %}
             <p class="vazio">Nenhum chamado ocultado.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO OCULTADOS -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if ocultados_has_prev %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page,
+                    ocultados_page=ocultados_page-1
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ ocultados_page }}</strong>
+
+            {% if ocultados_has_next %}
+                <a href="{{ url_for('admin',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page,
+                    ocultados_page=ocultados_page+1
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
 
-</div>
-
-<hr>
-
-<!-- ==================== PAGINAÇÃO ==================== -->
-<div style="text-align: center;">
-    {% if has_prev %}
-        <a href="{{ url_for('admin', page=page-1) }}">⬅ Anterior</a>
-    {% endif %}
-
-    <strong style="margin: 0 10px;">Página {{ page }}</strong>
-
-    {% if has_next %}
-        <a href="{{ url_for('admin', page=page+1) }}">Próxima ➡</a>
-    {% endif %}
 </div>
 
 </body>

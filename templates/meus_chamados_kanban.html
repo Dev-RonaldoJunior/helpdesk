@@ -30,9 +30,7 @@
                         #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
-
                 <p>{{ t[2] }}</p>
-
                 <small>
                     <strong>Status:</strong> {{ t[3] }}<br>
                     <strong>Criado em:</strong> {{ t[4] }}
@@ -41,7 +39,29 @@
         {% else %}
             <p class="vazio">Nenhum chamado aberto.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO ABERTOS -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if abertos_has_prev %}
+                <a href="{{ url_for('meus_chamados',
+                    abertos_page=abertos_page-1,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ abertos_page }}</strong>
+
+            {% if abertos_has_next %}
+                <a href="{{ url_for('meus_chamados',
+                    abertos_page=abertos_page+1,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
+
 
     <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
     <div class="coluna">
@@ -54,9 +74,7 @@
                         #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
-
                 <p>{{ t[2] }}</p>
-
                 <small>
                     <strong>Status:</strong> {{ t[3] }}<br>
                     <strong>Atendente:</strong> {{ t[9] or "—" }}<br>
@@ -66,7 +84,29 @@
         {% else %}
             <p class="vazio">Nenhum chamado em andamento.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO ANDAMENTO -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if andamento_has_prev %}
+                <a href="{{ url_for('meus_chamados',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page-1,
+                    fechados_page=fechados_page
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ andamento_page }}</strong>
+
+            {% if andamento_has_next %}
+                <a href="{{ url_for('meus_chamados',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page+1,
+                    fechados_page=fechados_page
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
+
 
     <!-- ==================== COLUNA: FECHADO ==================== -->
     <div class="coluna">
@@ -79,9 +119,7 @@
                         #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
-
                 <p>{{ t[2] }}</p>
-
                 <small>
                     <strong>Status:</strong> {{ t[3] }}<br>
                     <strong>Fechado em:</strong> {{ t[6] or "—" }}
@@ -90,23 +128,29 @@
         {% else %}
             <p class="vazio">Nenhum chamado fechado.</p>
         {% endfor %}
+
+        <!-- PAGINAÇÃO FECHADOS -->
+        <div style="text-align:center; margin-top:10px;">
+            {% if fechados_has_prev %}
+                <a href="{{ url_for('meus_chamados',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page-1
+                ) }}">⬅ Anterior</a>
+            {% endif %}
+
+            <strong style="margin: 0 10px;">{{ fechados_page }}</strong>
+
+            {% if fechados_has_next %}
+                <a href="{{ url_for('meus_chamados',
+                    abertos_page=abertos_page,
+                    andamento_page=andamento_page,
+                    fechados_page=fechados_page+1
+                ) }}">Próxima ➡</a>
+            {% endif %}
+        </div>
     </div>
 
-</div>
-
-<hr>
-
-<!-- ==================== PAGINAÇÃO ==================== -->
-<div style="text-align: center;">
-    {% if has_prev %}
-        <a href="{{ url_for('meus_chamados', page=page-1) }}">⬅ Anterior</a>
-    {% endif %}
-
-    <strong style="margin: 0 10px;">Página {{ page }}</strong>
-
-    {% if has_next %}
-        <a href="{{ url_for('meus_chamados', page=page+1) }}">Próxima ➡</a>
-    {% endif %}
 </div>
 
 </body>
