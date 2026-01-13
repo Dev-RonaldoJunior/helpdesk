@@ -1,57 +1,69 @@
 import sqlite3
+from werkzeug.security import generate_password_hash
 
 # ============================================================
-# SCRIPT PARA CRIAR UM USUÁRIO ADMIN PADRÃO NO BANCO DE DADOS
+# SCRIPT PARA CRIAR UM ADMIN PADRÃO COM SENHA CRIPTOGRAFADA
 # ============================================================
 #
-# Esse script serve para garantir que exista um usuário ADMIN
-# no seu sistema, criando automaticamente caso não exista.
+# Esse script:
+# 1) Conecta no banco SQLite (database.db)
+# 2) Verifica se já existe um usuário com o email definido
+# 3) Se não existir, cria o admin com senha em HASH
 #
-# Níveis de acesso (is_admin):
-# 0 = Usuário comum
-# 1 = Atendente
-# 2 = Admin
+# Níveis (is_admin):
+# 0 = usuário
+# 1 = atendente
+# 2 = admin
 #
 # ============================================================
 
 
 # Conecta ao banco de dados SQLite
-# Se o arquivo "database.db" não existir, o SQLite cria automaticamente
 conn = sqlite3.connect('database.db')
 
-# Cria um cursor, que é o "controle" para executar comandos SQL
+# Cursor para executar comandos SQL
 cursor = conn.cursor()
 
 
 # ============================================================
-# VERIFICA SE JÁ EXISTE UM USUÁRIO COM ESSE EMAIL
+# DADOS DO ADMIN PADRÃO
+# ============================================================
+email = 'admin@admin.com'
+
+# Gera um hash seguro para a senha
+# Isso evita salvar a senha em texto puro no banco (mais seguro)
+senha_hash = generate_password_hash('admin@123')
+
+
+# ============================================================
+# VERIFICA SE O ADMIN JÁ EXISTE NO BANCO
 # ============================================================
 cursor.execute(
     "SELECT id FROM users WHERE email = ?",
-    ('admin@admin.com',)  # IMPORTANTE: precisa ser tupla, por isso a vírgula no final
+    (email,)
 )
 
 # fetchone() retorna:
-# - Uma linha encontrada (ex: (1,))
-# - Ou None se não encontrar nada
-user = cursor.fetchone()
+# - (id,) se encontrar
+# - None se não existir
+existe = cursor.fetchone()
 
 
 # ============================================================
 # SE NÃO EXISTIR, CRIA O ADMIN
 # ============================================================
-if not user:
+if not existe:
     cursor.execute(
         "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
-        ('admin@admin.com', 'admin@123', 2)  # 2 = Admin
+        (email, senha_hash, 2)  # 2 = Admin
     )
 
-    # Salva a alteração no banco
+    # Salva as alterações no banco
     conn.commit()
 
     print("Admin criado com sucesso!")
 else:
-    # Se já existe, não cria de novo
+    # Se já existe, não cria novamente
     print("Admin já existe!")
 
 

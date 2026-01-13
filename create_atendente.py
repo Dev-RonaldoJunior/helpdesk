@@ -1,22 +1,23 @@
 import sqlite3
+from werkzeug.security import generate_password_hash
 
 # ============================================================
-# SCRIPT PARA CRIAR UM USUÁRIO ATENDENTE PADRÃO NO BANCO
+# SCRIPT PARA CRIAR UM USUÁRIO ATENDENTE COM SENHA CRIPTOGRAFADA
 # ============================================================
 #
-# Esse script cria um usuário com nível de ATENDENTE caso ele
-# ainda não exista no banco de dados.
+# Esse script serve para garantir que exista um usuário atendente
+# no sistema, criando automaticamente caso ele ainda não exista.
 #
-# Níveis de acesso (is_admin):
-# 0 = Usuário comum
-# 1 = Atendente
-# 2 = Admin
+# Níveis (is_admin):
+# 0 = usuário comum
+# 1 = atendente
+# 2 = admin
 #
 # ============================================================
 
 
-# Conecta ao banco SQLite
-# Se o arquivo "database.db" não existir, ele será criado automaticamente
+# Conecta ao banco de dados SQLite
+# Se o arquivo "database.db" não existir, o SQLite cria automaticamente
 conn = sqlite3.connect('database.db')
 
 # Cursor é o objeto usado para executar comandos SQL
@@ -24,13 +25,17 @@ cursor = conn.cursor()
 
 
 # ============================================================
-# DEFININDO O EMAIL DO ATENDENTE QUE SERÁ CRIADO
+# DADOS DO ATENDENTE PADRÃO
 # ============================================================
 email = 'atendente@atendente.com'
 
+# Cria o hash seguro da senha
+# Isso é MUITO melhor do que salvar a senha em texto puro
+senha_hash = generate_password_hash('atendente@123')
+
 
 # ============================================================
-# VERIFICA SE ESSE EMAIL JÁ EXISTE NO BANCO
+# VERIFICA SE O EMAIL JÁ EXISTE NO BANCO
 # ============================================================
 cursor.execute(
     "SELECT id FROM users WHERE email = ?",
@@ -38,27 +43,27 @@ cursor.execute(
 )
 
 # fetchone() retorna:
-# - Uma linha encontrada (ex: (3,))
-# - Ou None se não encontrar nada
-user = cursor.fetchone()
+# - (id,) se existir
+# - None se não existir
+existe = cursor.fetchone()
 
 
 # ============================================================
 # SE NÃO EXISTIR, CRIA O USUÁRIO ATENDENTE
 # ============================================================
-if not user:
+if not existe:
     cursor.execute(
         "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
-        (email, 'atendente@123', 1)  # 1 = Atendente
+        (email, senha_hash, 1)  # 1 = Atendente
     )
 
     # Salva a alteração no banco
     conn.commit()
 
-    print("Usuário atendente criado com sucesso!")
+    print("Atendente criado com sucesso!")
 else:
     # Se já existir, evita duplicação
-    print("Usuário atendente já existe!")
+    print("Atendente já existe!")
 
 
 # ============================================================
