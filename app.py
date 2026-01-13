@@ -2,24 +2,16 @@
 # IMPORTAÇÕES
 # ============================================================
 
-# Flask:
-# - Flask: cria a aplicação
-# - render_template: renderiza páginas HTML (templates)
-# - request: pega dados enviados por formulários (POST)
-# - redirect: redireciona para outra rota
-# - url_for: gera URLs de rotas pelo nome da função
-# - session: guarda informações do usuário logado
+# Importa os recursos principais do Flask
 from flask import Flask, render_template, request, redirect, url_for, session
 
-# SQLite: banco de dados simples em arquivo (.db)
+# SQLite (banco de dados em arquivo)
 import sqlite3
 
-# datetime: para salvar datas de criação/início/fechamento do ticket
+# Para salvar data/hora de criação, início e fechamento do ticket
 from datetime import datetime
 
-# Werkzeug Security:
-# - generate_password_hash: cria um hash seguro da senha
-# - check_password_hash: compara senha digitada com o hash do banco
+# Para criptografar senha (hash) e validar senha no login
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -27,22 +19,22 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # CONFIGURAÇÃO DO APP
 # ============================================================
 
-# Cria a aplicação Flask
+# Cria o app Flask
 app = Flask(__name__)
 
-# Chave secreta usada para criptografar/assinar a session
-# IMPORTANTE: em produção use algo forte e escondido (env var)
+# Chave secreta para assinar/criptografar os dados da sessão
+# IMPORTANTE: em produção isso deve ser forte e escondido (variável de ambiente)
 app.secret_key = 'chave-secreta-simples'
 
 
 # ============================================================
-# FUNÇÃO DE CONEXÃO COM O BANCO
+# FUNÇÃO PARA CONECTAR NO BANCO
 # ============================================================
 
 def get_db_connection():
     """
-    Abre uma conexão com o banco de dados SQLite.
-    Toda vez que você precisar executar SQL, use essa função.
+    Abre uma conexão com o banco SQLite.
+    Sempre que precisar consultar ou alterar dados, use essa função.
     """
     conn = sqlite3.connect('database.db')
     return conn
@@ -55,51 +47,50 @@ def get_db_connection():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """
-    Rota de login:
+    Tela de login:
     - GET: mostra a página login.html
-    - POST: valida email e senha (hash) e faz login
+    - POST: valida email e senha usando hash
     """
 
-    # Se o usuário enviou o formulário
+    # Se o formulário foi enviado
     if request.method == 'POST':
-        # Pega os dados digitados no formulário
+        # Captura os dados enviados pelo formulário
         email = request.form['email']
         senha = request.form['senha']
 
-        # Conecta ao banco
+        # Conecta no banco
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Busca o usuário pelo email
-        # (Agora não buscamos por senha aqui, porque a senha está em hash)
         cursor.execute(
             "SELECT * FROM users WHERE email = ?",
             (email,)
         )
 
-        # Retorna a primeira linha encontrada ou None
+        # Pega o usuário encontrado (ou None)
         user = cursor.fetchone()
         conn.close()
 
-        # Se encontrou o usuário, valida a senha
+        # Se o usuário existe, valida a senha
         if user:
-            # user[2] = coluna "senha" no banco
-            # agora é um hash (não é mais a senha pura)
+            # user[2] é a senha salva no banco
+            # agora é um hash (não é texto puro)
             senha_hash = user[2]
 
-            # check_password_hash compara a senha digitada com o hash do banco
+            # check_password_hash compara o hash do banco com a senha digitada
             if check_password_hash(senha_hash, senha):
-                # Salva informações do usuário logado na sessão
-                session['user_id'] = user[0]  # ID do usuário
-                session['nivel'] = user[3]    # nível de acesso (0,1,2)
+                # Salva dados do usuário na sessão
+                session['user_id'] = user[0]  # id do usuário
+                session['nivel'] = user[3]    # 0 usuário | 1 atendente | 2 admin
 
-                # Redireciona para o dashboard
+                # Vai para o dashboard
                 return redirect(url_for('dashboard'))
 
-        # Se não achou usuário ou senha não bateu
+        # Se email não existir ou senha estiver errada
         return "Email ou senha inválidos!"
 
-    # Se for GET, apenas mostra a tela de login
+    # Se for GET, apenas exibe a página de login
     return render_template('login.html')
 
 
@@ -110,7 +101,7 @@ def login():
 @app.route('/logout')
 def logout():
     """
-    Limpa a sessão e volta para o login.
+    Faz logout limpando a sessão e voltando para o login.
     """
     session.clear()
     return redirect(url_for('login'))
@@ -124,24 +115,22 @@ def logout():
 def register():
     """
     Cadastro de usuário:
-    - GET: mostra register.html
-    - POST: cria usuário com senha criptografada (hash)
+    - GET: mostra a página register.html
+    - POST: cadastra usuário no banco com senha criptografada
     """
 
     if request.method == 'POST':
-        # Dados do formulário
+        # Captura email e senha digitados
         email = request.form['email']
         senha = request.form['senha']
 
-        # Gera hash da senha
-        # Isso impede que a senha fique salva em texto puro no banco
+        # Cria um hash seguro da senha
         senha_hash = generate_password_hash(senha)
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Insere o usuário no banco
-        # is_admin = 0 (usuário comum)
+        # Insere o usuário como nível 0 (usuário comum)
         cursor.execute(
             "INSERT INTO users (email, senha, is_admin) VALUES (?, ?, ?)",
             (email, senha_hash, 0)
@@ -163,8 +152,8 @@ def register():
 def dashboard():
     """
     Dashboard:
-    - Mostra os tickets de acordo com o nível do usuário
-    - Admin (nível 2) vê tudo, inclusive ocultos
+    - Mostra lista de chamados conforme nível do usuário
+    - Admin (nível 2) vê tudo (inclusive ocultos)
     - Usuário e atendente não veem ocultos
     """
 
@@ -175,52 +164,55 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # ============================================================
     # ADMIN vê tudo (inclusive ocultos)
+    # ============================================================
     if session.get('nivel') == 2:
         cursor.execute("""
             SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                creator.email,
-                attendant.email
+                tickets.id,          -- ticket[0]
+                tickets.titulo,       -- ticket[1]
+                tickets.descricao,    -- ticket[2]
+                tickets.status,       -- ticket[3]
+                tickets.created_at,   -- ticket[4]
+                tickets.started_at,   -- ticket[5]
+                tickets.closed_at,    -- ticket[6]
+                tickets.is_hidden,    -- ticket[7]
+                creator.email,        -- ticket[8]
+                attendant.email       -- ticket[9]
             FROM tickets
             JOIN users AS creator ON tickets.user_id = creator.id
             LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
         """)
+
+    # ============================================================
+    # Usuário e atendente só veem tickets visíveis (is_hidden = 0)
+    # ============================================================
     else:
-        # Usuário e atendente não veem ocultos
-        # Regras:
-        # - tickets.is_hidden = 0 => só visíveis
-        # - usuário comum (nível 0) vê só os próprios tickets
-        # - atendente (nível 1) vê todos os tickets visíveis
         cursor.execute("""
             SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                creator.email,
-                attendant.email
+                tickets.id,          -- ticket[0]
+                tickets.titulo,       -- ticket[1]
+                tickets.descricao,    -- ticket[2]
+                tickets.status,       -- ticket[3]
+                tickets.created_at,   -- ticket[4]
+                tickets.started_at,   -- ticket[5]
+                tickets.closed_at,    -- ticket[6]
+                tickets.is_hidden,    -- ticket[7]
+                creator.email,        -- ticket[8]
+                attendant.email       -- ticket[9]
             FROM tickets
             JOIN users AS creator ON tickets.user_id = creator.id
             LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
             WHERE tickets.is_hidden = 0
-              AND (tickets.user_id = ? OR ? IN (1))
+            AND (tickets.user_id = ? OR ? IN (1))
         """, (session['user_id'], session.get('nivel')))
 
-    # Pega todos os tickets retornados
+    # Retorna todos os tickets
     tickets = cursor.fetchall()
     conn.close()
 
-    # Renderiza a página e envia a lista de tickets
+    # Renderiza a página dashboard.html enviando a lista de tickets
     return render_template('dashboard.html', tickets=tickets)
 
 
@@ -232,15 +224,15 @@ def dashboard():
 def create_ticket():
     """
     Criação de ticket:
-    - GET: mostra o formulário
-    - POST: salva o ticket no banco como "Aberto"
+    - GET: mostra create_ticket.html
+    - POST: cria o ticket no banco com status "Aberto"
     """
 
-    # Só logado pode criar ticket
+    # Se não estiver logado, volta pro login
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # Se enviou o formulário
+    # Se o formulário foi enviado
     if request.method == 'POST':
         titulo = request.form['titulo']
         descricao = request.form['descricao']
@@ -257,31 +249,29 @@ def create_ticket():
             titulo,
             descricao,
             'Aberto',  # status inicial
-            session['user_id'],  # criador do chamado
+            session['user_id'],  # usuário que criou
             datetime.now().strftime('%d/%m/%Y %H:%M'),  # data/hora atual
-            0  # is_hidden = 0 => visível
+            0  # 0 = visível
         ))
 
         conn.commit()
         conn.close()
 
-        # Volta pro dashboard
         return redirect(url_for('dashboard'))
 
-    # Se for GET, mostra a página
     return render_template('create_ticket.html')
 
 
 # ============================================================
-# INICIAR ATENDIMENTO DO TICKET
+# INICIAR ATENDIMENTO
 # ============================================================
 
 @app.route('/start-ticket/<int:ticket_id>')
 def start_ticket(ticket_id):
     """
-    Inicia atendimento:
-    - Somente atendente (1) ou admin (2)
-    - Só inicia se estiver 'Aberto'
+    Inicia o atendimento:
+    - Somente atendente (1) e admin (2)
+    - Só inicia se o ticket estiver "Aberto"
     - Define attendant_id e started_at
     """
 
@@ -298,7 +288,7 @@ def start_ticket(ticket_id):
         WHERE id = ? AND status = 'Aberto'
     """, (
         'Em andamento',
-        session['user_id'],  # quem iniciou atendimento
+        session['user_id'],  # atendente/admin que iniciou
         datetime.now().strftime('%d/%m/%Y %H:%M'),
         ticket_id
     ))
@@ -310,16 +300,16 @@ def start_ticket(ticket_id):
 
 
 # ============================================================
-# FECHAR TICKET
+# FECHAR CHAMADO
 # ============================================================
 
 @app.route('/close-ticket/<int:ticket_id>')
 def close_ticket(ticket_id):
     """
-    Fecha o ticket:
-    - Somente atendente (1) ou admin (2)
-    - Só fecha se estiver 'Em andamento'
-    - Salva closed_at
+    Fecha o chamado:
+    - Somente atendente (1) e admin (2)
+    - Só fecha se estiver "Em andamento"
+    - Define closed_at
     """
 
     if session.get('nivel') not in [1, 2]:
@@ -345,16 +335,16 @@ def close_ticket(ticket_id):
 
 
 # ============================================================
-# OCULTAR TICKET (SOFT DELETE)
+# OCULTAR CHAMADO (SOFT DELETE)
 # ============================================================
 
 @app.route('/hide-ticket/<int:ticket_id>')
 def hide_ticket(ticket_id):
     """
-    Oculta um ticket (soft delete):
+    Oculta um chamado:
     - Não apaga do banco
     - Apenas marca is_hidden = 1
-    - Somente atendente (1) ou admin (2)
+    - Somente atendente (1) e admin (2)
     """
 
     if session.get('nivel') not in [1, 2]:
@@ -375,11 +365,45 @@ def hide_ticket(ticket_id):
 
 
 # ============================================================
+# DESOCULTAR CHAMADO (SOMENTE ADMIN)
+# ============================================================
+
+@app.route('/unhide-ticket/<int:ticket_id>')
+def unhide_ticket(ticket_id):
+    """
+    Desoculta um chamado:
+    - Somente admin (nível 2)
+    - Marca is_hidden = 0 (volta a ficar visível)
+    """
+
+    # Se não estiver logado, volta pro login
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # Se não for admin, não permite
+    if session.get('nivel') != 2:
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE tickets SET is_hidden = 0 WHERE id = ?",
+        (ticket_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('dashboard'))
+
+
+# ============================================================
 # INICIAR O SERVIDOR
 # ============================================================
 
 if __name__ == '__main__':
     # debug=True:
-    # - reinicia o servidor automaticamente quando você altera o código
+    # - reinicia automaticamente quando você salva o arquivo
     # - mostra erros detalhados no navegador
     app.run(debug=True)
