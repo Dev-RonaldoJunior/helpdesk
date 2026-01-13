@@ -80,38 +80,11 @@
                 <li>
 
                     <!-- Título do ticket -->
-                    <strong>{{ ticket[1] }}</strong><br>
-
-                    <!-- Descrição do ticket -->
-                    {{ ticket[2] }}<br><br>
-
-                    <!-- =======================================================
-                         DADOS DO CHAMADO (INFORMAÇÕES IMPORTANTES)
-                         ======================================================= -->
-                    <small>
-                        <!-- Email do criador -->
-                        <strong>Criado por:</strong> {{ ticket[8] }}<br>
-
-                        <!-- Data/hora de criação -->
-                        <strong>Criado em:</strong> {{ ticket[4] }}<br>
-
-                        <!-- Email do atendente (se existir) -->
-                        {% if ticket[9] %}
-                            <strong>Atendente:</strong> {{ ticket[9] }}<br>
-                        {% endif %}
-
-                        <!-- Data/hora do início do atendimento (se existir) -->
-                        {% if ticket[5] %}
-                            <strong>Atendimento iniciado:</strong> {{ ticket[5] }}<br>
-                        {% endif %}
-
-                        <!-- Data/hora do fechamento (se existir) -->
-                        {% if ticket[6] %}
-                            <strong>Fechado em:</strong> {{ ticket[6] }}<br>
-                        {% endif %}
-                    </small>
-
-                    <br><br>
+                    <strong>Chamado: 
+                        <a href="{{ url_for('ticket_detail', ticket_id=ticket[0]) }}">
+                            {{ ticket[1] }}
+                        </a>
+                    </strong><br><br>
 
                     <!-- =======================================================
                          STATUS DO CHAMADO

@@ -513,6 +513,102 @@ def unhide_ticket(ticket_id):
     return redirect(url_for('dashboard'))
 
 
+@app.route('/ticket/<int:ticket_id>')
+def ticket_detail(ticket_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Admin pode ver qualquer ticket (inclusive ocultado)
+    if session.get('nivel') == 2:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username,
+                attendant.username,
+                hider.username,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.id = ?
+        """, (ticket_id,))
+        ticket = cursor.fetchone()
+
+    # Usuário comum (nível 0) só pode ver o próprio ticket e não ocultado
+    elif session.get('nivel') == 0:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username,
+                attendant.username,
+                hider.username,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.id = ?
+              AND tickets.user_id = ?
+              AND tickets.is_hidden = 0
+        """, (ticket_id, session['user_id']))
+        ticket = cursor.fetchone()
+
+    # Atendente (nível 1) pode ver:
+    # - tickets abertos (não ocultos)
+    # - tickets que ele está atendendo (não ocultos)
+    else:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username,
+                attendant.username,
+                hider.username,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.id = ?
+              AND tickets.is_hidden = 0
+              AND (
+                    tickets.status = 'Aberto'
+                    OR tickets.attendant_id = ?
+                  )
+        """, (ticket_id, session['user_id']))
+        ticket = cursor.fetchone()
+
+    conn.close()
+
+    if not ticket:
+        return "Chamado não encontrado ou você não tem permissão para ver."
+
+    return render_template('ticket_detail.html', ticket=ticket)
+
 # ============================================================
 # INICIAR A APLICAÇÃO
 # ============================================================
