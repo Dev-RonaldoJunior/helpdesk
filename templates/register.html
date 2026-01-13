@@ -7,13 +7,13 @@
     <!-- Charset para suportar acentos -->
     <meta charset="UTF-8">
 
-    <!-- Responsividade (funciona bem em celular/tablet) -->
+    <!-- Responsividade para celular/tablet -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Título que aparece na aba do navegador -->
     <title>Cadastro - Help Desk</title>
 
-    <!-- Importa o CSS da pasta static do Flask -->
+    <!-- Importa o CSS dentro da pasta /static do Flask -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -25,24 +25,25 @@
     <!-- =======================================================
          FORMULÁRIO DE CADASTRO
          method="POST" envia os dados para o backend (Flask)
-         autocomplete="off" evita preenchimento automático
          ======================================================= -->
-    <form method="POST" autocomplete="off">
+    <form method="POST">
 
-        <!-- Campo: Email -->
-        <label for="email">Email:</label><br>
-        <!-- type="email" valida o formato do email automaticamente -->
-        <!-- name="email" é o que o Flask recebe no request.form['email'] -->
-        <input type="email" id="email" name="email" required><br><br>
+        <!-- Campo: Username (nome.sobrenome) -->
+        <label>Usuário (nome.sobrenome):</label><br>
+
+        <!-- Input de texto para username -->
+        <!-- name="username" é o que o Flask vai receber em request.form['username'] -->
+        <!-- placeholder serve como dica visual -->
+        <input type="text" name="username" required placeholder="ex: nome.sobrenome"><br><br>
 
         <!-- Campo: Senha -->
-        <label for="senha">Senha:</label><br>
-        <!-- type="password" oculta o texto digitado -->
-        <!-- minlength="6" força no mínimo 6 caracteres -->
-        <!-- name="senha" é o que o Flask recebe no request.form['senha'] -->
-        <input type="password" id="senha" name="senha" minlength="6" required><br><br>
+        <label>Senha:</label><br>
 
-        <!-- Botão para enviar o formulário -->
+        <!-- Input de senha (esconde os caracteres digitados) -->
+        <!-- name="senha" é o que o Flask vai receber em request.form['senha'] -->
+        <input type="password" name="senha" required><br><br>
+
+        <!-- Botão que envia o formulário -->
         <button type="submit">Cadastrar</button>
     </form>
 

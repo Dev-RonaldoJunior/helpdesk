@@ -4,13 +4,19 @@ import sqlite3
 # SCRIPT PARA CRIAR A TABELA "users" NO BANCO SQLITE
 # ============================================================
 #
-# Esse script cria a tabela "users" caso ela ainda não exista.
-# Ela armazena os usuários do sistema e o nível de permissão.
+# Essa tabela armazena os usuários do sistema Help Desk.
 #
-# Níveis de acesso (is_admin):
-# 0 = Usuário comum
-# 1 = Atendente
-# 2 = Admin
+# Campos:
+# - id: identificador único do usuário
+# - username: nome de usuário (obrigatório e único)
+# - email: opcional (pode ficar vazio/NULL)
+# - senha: senha do usuário (ideal guardar em HASH)
+# - is_admin: nível de acesso
+#
+# Níveis (is_admin):
+# 0 = usuário comum
+# 1 = atendente
+# 2 = admin
 #
 # ============================================================
 
@@ -19,29 +25,34 @@ import sqlite3
 # Se o arquivo "database.db" não existir, ele será criado automaticamente
 conn = sqlite3.connect('database.db')
 
-# Cursor é o objeto usado para executar comandos SQL no banco
+# Cursor é o objeto usado para executar comandos SQL
 cursor = conn.cursor()
 
 
 # ============================================================
-# CRIAÇÃO DA TABELA "users" (SE NÃO EXISTIR)
+# CRIA A TABELA "users" SE NÃO EXISTIR
 # ============================================================
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, -- ID único gerado automaticamente
-    email TEXT NOT NULL,                  -- Email do usuário (obrigatório)
-    senha TEXT NOT NULL,                  -- Senha do usuário (obrigatória)
-    is_admin INTEGER NOT NULL             -- Nível do usuário (0, 1 ou 2)
+
+    username TEXT NOT NULL UNIQUE,        -- Nome de usuário obrigatório e único (ex: nome.sobrenome)
+
+    email TEXT,                           -- Email opcional (pode ser NULL)
+
+    senha TEXT NOT NULL,                  -- Senha obrigatória (recomendado salvar em hash)
+
+    is_admin INTEGER NOT NULL             -- Nível do usuário: 0, 1 ou 2
 )
 """)
 
 
-# Salva a criação da tabela no banco
+# Salva a criação no banco
 conn.commit()
 
-# Fecha a conexão com o banco
+# Fecha a conexão
 conn.close()
 
 
-# Mensagem no terminal para confirmar que deu certo
+# Mensagem para confirmar que deu certo
 print("Tabela de usuários criada com sucesso!")
