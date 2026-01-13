@@ -1,28 +1,55 @@
 <!DOCTYPE html>
+<!-- Documento HTML5 -->
 <html lang="pt-br">
+<!-- Define o idioma como Português do Brasil -->
+
 <head>
+    <!-- Charset para suportar acentos -->
     <meta charset="UTF-8">
+
+    <!-- Responsividade (funciona bem em celular/tablet) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Título que aparece na aba do navegador -->
     <title>Cadastro - Help Desk</title>
+
+    <!-- Importa o CSS da pasta static do Flask -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
 
-<h1>Cadastro - Help Desk</h1>
+    <!-- Título principal da página -->
+    <h1>Cadastro - Help Desk</h1>
 
-<form method="POST" autocomplete="off">
-    <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" required><br><br>
+    <!-- =======================================================
+         FORMULÁRIO DE CADASTRO
+         method="POST" envia os dados para o backend (Flask)
+         autocomplete="off" evita preenchimento automático
+         ======================================================= -->
+    <form method="POST" autocomplete="off">
 
-    <label for="senha">Senha:</label><br>
-    <input type="password" id="senha" name="senha" minlength="6" required><br><br>
+        <!-- Campo: Email -->
+        <label for="email">Email:</label><br>
+        <!-- type="email" valida o formato do email automaticamente -->
+        <!-- name="email" é o que o Flask recebe no request.form['email'] -->
+        <input type="email" id="email" name="email" required><br><br>
 
-    <button type="submit">Cadastrar</button>
-</form>
+        <!-- Campo: Senha -->
+        <label for="senha">Senha:</label><br>
+        <!-- type="password" oculta o texto digitado -->
+        <!-- minlength="6" força no mínimo 6 caracteres -->
+        <!-- name="senha" é o que o Flask recebe no request.form['senha'] -->
+        <input type="password" id="senha" name="senha" minlength="6" required><br><br>
 
-<p>
-    <a href="{{ url_for('login') }}">Voltar para o login</a>
-</p>
+        <!-- Botão para enviar o formulário -->
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <!-- Link para voltar para a tela de login -->
+    <p>
+        <a href="{{ url_for('login') }}">Voltar para o login</a>
+    </p>
 
 </body>
 </html>

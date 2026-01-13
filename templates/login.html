@@ -1,29 +1,59 @@
 <!DOCTYPE html>
+<!-- Documento HTML5 -->
 <html lang="pt-br">
+<!-- Define o idioma da página como Português do Brasil -->
+
 <head>
+    <!-- Define o conjunto de caracteres (permite acentos) -->
     <meta charset="UTF-8">
+
+    <!-- Ajusta a página para ficar responsiva em celular/tablet -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Título que aparece na aba do navegador -->
     <title>Login - Help Desk</title>
+
+    <!-- Importa o arquivo CSS da pasta /static do Flask -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
 
-<h1>Login - Help Desk</h1>
+    <!-- Título principal da página -->
+    <h1>Login - Help Desk</h1>
 
-<form method="POST" autocomplete="off">
-    <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" required><br><br>
+    <!-- =======================================================
+         FORMULÁRIO DE LOGIN
+         method="POST" envia os dados para o backend (Flask)
+         autocomplete="off" evita o navegador sugerir preenchimentos
+         ======================================================= -->
+    <form method="POST" autocomplete="off">
 
-    <label for="senha">Senha:</label><br>
-    <input type="password" id="senha" name="senha" required><br><br>
+        <!-- Campo: Email -->
+        <label for="email">Email:</label><br>
+        <!-- type="email" valida automaticamente o formato do email -->
+        <!-- id="email" conecta com o label -->
+        <!-- name="email" é o que o Flask vai receber no request.form['email'] -->
+        <input type="email" id="email" name="email" required><br><br>
 
-    <button type="submit">Entrar</button>
-</form>
+        <!-- Campo: Senha -->
+        <label for="senha">Senha:</label><br>
+        <!-- type="password" esconde os caracteres digitados -->
+        <!-- name="senha" é o que o Flask vai receber no request.form['senha'] -->
+        <input type="password" id="senha" name="senha" required><br><br>
 
-<p>
-    Não tem conta?
-    <a href="{{ url_for('register') }}">Cadastre-se</a>
-</p>
+        <!-- Botão que envia o formulário -->
+        <button type="submit">Entrar</button>
+    </form>
+
+    <!-- =======================================================
+         LINK PARA CADASTRO
+         Se o usuário não tiver conta, ele pode ir para /register
+         ======================================================= -->
+    <p>
+        Não tem conta?
+        <a href="{{ url_for('register') }}">Cadastre-se</a>
+    </p>
 
 </body>
 </html>

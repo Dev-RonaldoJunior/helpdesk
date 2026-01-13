@@ -1,28 +1,56 @@
 <!DOCTYPE html>
+<!-- Define o tipo do documento como HTML5 -->
 <html lang="pt-br">
+<!-- Define o idioma da página como Português do Brasil -->
+
 <head>
+    <!-- Define o padrão de caracteres para suportar acentos -->
     <meta charset="UTF-8">
+
+    <!-- Ajusta a responsividade para celular/tablet -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Título que aparece na aba do navegador -->
     <title>Novo Chamado</title>
+
+    <!-- Importa o CSS da pasta static do Flask -->
+    <!-- url_for('static', filename='style.css') gera o caminho correto automaticamente -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
 
-<h1>Novo Chamado</h1>
+    <!-- Título principal da página -->
+    <h1>Novo Chamado</h1>
 
-<form method="POST" autocomplete="off">
-    <label>Título:</label><br>
-    <input type="text" name="titulo" maxlength="100" required><br><br>
+    <!-- Formulário para criar um novo ticket/chamado -->
+    <!-- method="POST" significa que os dados serão enviados para o backend -->
+    <!-- autocomplete="off" impede o navegador de sugerir dados preenchidos anteriormente -->
+    <form method="POST" autocomplete="off">
 
-    <label>Descrição:</label><br>
-    <textarea name="descricao" rows="4" maxlength="500" required></textarea><br><br>
+        <!-- Campo: Título do chamado -->
+        <label>Título:</label><br>
+        <!-- Input de texto -->
+        <!-- name="titulo" é o nome que o Flask vai receber no request.form['titulo'] -->
+        <!-- maxlength limita o tamanho máximo do texto -->
+        <!-- required obriga o usuário a preencher -->
+        <input type="text" name="titulo" maxlength="100" required><br><br>
 
-    <button type="submit">Criar Chamado</button>
-</form>
+        <!-- Campo: Descrição do chamado -->
+        <label>Descrição:</label><br>
+        <!-- Textarea é usada para textos maiores -->
+        <!-- name="descricao" é o nome que o Flask vai receber no request.form['descricao'] -->
+        <textarea name="descricao" rows="4" maxlength="500" required></textarea><br><br>
 
-<p>
-    <a href="{{ url_for('dashboard') }}">Voltar ao dashboard</a>
-</p>
+        <!-- Botão para enviar o formulário -->
+        <button type="submit">Criar Chamado</button>
+    </form>
+
+    <!-- Link para voltar ao dashboard -->
+    <p>
+        <!-- url_for('dashboard') gera a rota correta do dashboard -->
+        <a href="{{ url_for('dashboard') }}">Voltar ao dashboard</a>
+    </p>
 
 </body>
 </html>
