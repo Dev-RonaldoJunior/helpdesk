@@ -221,21 +221,16 @@ def register():
 
 @app.route('/dashboard')
 def dashboard():
-    """
-    Dashboard:
-    - Admin (2): vê tudo (inclusive ocultos)
-    - Usuário (0): vê só os próprios tickets visíveis
-    - Atendente (1): vê tickets visíveis que:
-        - estão "Aberto"
-        - OU estão atribuídos a ele (attendant_id = ele)
-    """
-
-    # Se não estiver logado, volta pro login
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # Usuário comum vai para "meus chamados"
+    if session.get('nivel') == 0:
+        return redirect(url_for('meus_chamados'))
+
+    # Atendente e admin vão para "fila"
+    return redirect(url_for('fila'))
+
 
     # ============================================================
     # ADMIN (nível 2) - vê tudo
@@ -608,6 +603,116 @@ def ticket_detail(ticket_id):
         return "Chamado não encontrado ou você não tem permissão para ver."
 
     return render_template('ticket_detail.html', ticket=ticket)
+
+
+
+@app.route('/meus-chamados')
+def meus_chamados():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Usuário comum: vê apenas os próprios tickets (não ocultos)
+    cursor.execute("""
+        SELECT
+            tickets.id,
+            tickets.titulo,
+            tickets.descricao,
+            tickets.status,
+            tickets.created_at,
+            tickets.started_at,
+            tickets.closed_at,
+            tickets.is_hidden,
+            creator.username,
+            attendant.username,
+            hider.username,
+            tickets.hidden_at
+        FROM tickets
+        JOIN users AS creator ON tickets.user_id = creator.id
+        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+        WHERE tickets.is_hidden = 0
+          AND tickets.user_id = ?
+        ORDER BY tickets.id DESC
+    """, (session['user_id'],))
+
+    tickets = cursor.fetchall()
+    conn.close()
+
+    return render_template('meus_chamados.html', tickets=tickets)
+
+
+
+@app.route('/fila')
+def fila():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # Só atendente ou admin
+    if session.get('nivel') not in [1, 2]:
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # ADMIN vê todos (inclusive ocultos)
+    if session.get('nivel') == 2:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username,
+                attendant.username,
+                hider.username,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            ORDER BY tickets.id DESC
+        """)
+    else:
+        # ATENDENTE vê:
+        # - chamados ABERTOS (pra poder pegar)
+        # - chamados dele (em andamento/fechado)
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username,
+                attendant.username,
+                hider.username,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.is_hidden = 0
+              AND (
+                    tickets.status = 'Aberto'
+                    OR tickets.attendant_id = ?
+                  )
+            ORDER BY tickets.id DESC
+        """, (session['user_id'],))
+
+    tickets = cursor.fetchall()
+    conn.close()
+
+    return render_template('fila.html', tickets=tickets)
 
 # ============================================================
 # INICIAR A APLICAÇÃO

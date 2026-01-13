@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Chamados - Help Desk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>Meus Chamados</h1>
+
+<p><strong>Perfil:</strong> Usuário</p>
+
+<p>
+    <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a> |
+    <a href="{{ url_for('logout') }}">Logout</a>
+</p>
+
+<hr>
+
+{% if tickets %}
+<ul>
+    {% for ticket in tickets %}
+        <li>
+            <strong>
+                <a href="{{ url_for('ticket_detail', ticket_id=ticket[0]) }}">
+                    {{ ticket[1] }}
+                </a>
+            </strong><br>
+
+            {{ ticket[2] }}<br><br>
+
+            <small>
+                <strong>Status:</strong> {{ ticket[3] }}<br>
+                <strong>Criado em:</strong> {{ ticket[4] }}<br>
+
+                {% if ticket[9] %}
+                    <strong>Atendente:</strong> {{ ticket[9] }}<br>
+                {% endif %}
+            </small>
+        </li>
+        <hr>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Você ainda não criou nenhum chamado.</p>
+{% endif %}
+
+</body>
+</html>

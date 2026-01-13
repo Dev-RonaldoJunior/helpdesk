@@ -86,18 +86,19 @@
                         </a>
                     </strong><br><br>
 
-                    <!-- =======================================================
-                         STATUS DO CHAMADO
-                         Se is_hidden = 1, mostra como "Ocultado"
-                         Caso contrário mostra o status normal
-                         ======================================================= -->
-                    {% if ticket[7] == 1 %}
-                        <em><strong>Status:</strong> Ocultado</em><br>
-                    {% else %}
-                        <em><strong>Status:</strong> {{ ticket[3] }}</em><br>
-                    {% endif %}
-
-                    <br>
+                    <small>
+                        <!-- =======================================================
+                             STATUS DO CHAMADO
+                             Se is_hidden = 1, mostra como "Ocultado"
+                             Caso contrário mostra o status normal
+                             ======================================================= -->
+                        {% if ticket[7] == 1 %}
+                            <em><strong>Status:</strong> Ocultado</em><br>
+                        {% else %}
+                            <em><strong>Status:</strong> {{ ticket[3] }}</em><br>
+                        {% endif %}
+                        <br>
+                    </small>
 
                     <!-- =======================================================
                          INFO EXTRA DE OCULTAÇÃO (SÓ ADMIN VÊ)
