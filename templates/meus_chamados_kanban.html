@@ -19,7 +19,7 @@
 
 <div class="kanban">
 
-    <!-- COLUNA: ABERTO -->
+    <!-- ==================== COLUNA: ABERTO ==================== -->
     <div class="coluna">
         <h3>Aberto</h3>
 
@@ -27,7 +27,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -43,7 +43,8 @@
         {% endfor %}
     </div>
 
-    <!-- COLUNA: EM ANDAMENTO -->
+
+    <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
     <div class="coluna">
         <h3>Em andamento</h3>
 
@@ -51,7 +52,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -68,7 +69,8 @@
         {% endfor %}
     </div>
 
-    <!-- COLUNA: FECHADO -->
+
+    <!-- ==================== COLUNA: FECHADO ==================== -->
     <div class="coluna">
         <h3>Fechado</h3>
 
@@ -76,7 +78,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 

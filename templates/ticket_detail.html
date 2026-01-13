@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detalhes do Chamado</title>
+    <title>Chamado #{{ ticket[0] }} - Detalhes</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<h1>Detalhes do Chamado</h1>
+<h1>Chamado #{{ ticket[0] }}</h1>
 
-<h2>{{ ticket[1] }}</h2>
+<h2>#{{ ticket[0] }} - {{ ticket[1] }}</h2>
 
 <hr>
 
@@ -26,22 +26,22 @@
             {{ ticket[3] }}
         {% endif %}
     </p>
-    
+
     <p><strong>Criado por:</strong> {{ ticket[8] }}</p>
     <p><strong>Criado em:</strong> {{ ticket[4] }}</p>
-    
+
     {% if ticket[9] %}
         <p><strong>Atendente:</strong> {{ ticket[9] }}</p>
     {% endif %}
-    
+
     {% if ticket[5] %}
         <p><strong>Atendimento iniciado em:</strong> {{ ticket[5] }}</p>
     {% endif %}
-    
+
     {% if ticket[6] %}
         <p><strong>Fechado em:</strong> {{ ticket[6] }}</p>
     {% endif %}
-    
+
     {% if session.get('nivel') == 2 and ticket[7] == 1 %}
         <hr>
         <p><strong>Ocultado por:</strong> {{ ticket[10] }}</p>

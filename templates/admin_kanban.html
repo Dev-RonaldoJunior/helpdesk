@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device=device-width, initial-scale=1.0">
     <title>Painel Admin - Help Desk</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -26,7 +26,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -43,12 +43,8 @@
                 <a href="{{ url_for('start_ticket', ticket_id=t[0]) }}">
                     Iniciar atendimento
                 </a>
-                <br>
 
-                <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
-                   onclick="return confirm('Deseja ocultar este chamado?');">
-                    Ocultar
-                </a>
+                <!-- Ocultar só aparece se estiver fechado (aqui não aparece) -->
             </div>
         {% else %}
             <p class="vazio">Nenhum chamado aberto.</p>
@@ -64,7 +60,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -82,12 +78,8 @@
                 <a href="{{ url_for('close_ticket', ticket_id=t[0]) }}">
                     Fechar chamado
                 </a>
-                <br>
 
-                <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
-                   onclick="return confirm('Deseja ocultar este chamado?');">
-                    Ocultar
-                </a>
+                <!-- Ocultar só aparece se estiver fechado (aqui não aparece) -->
             </div>
         {% else %}
             <p class="vazio">Nenhum chamado em andamento.</p>
@@ -103,7 +95,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -118,10 +110,13 @@
 
                 <br><br>
 
-                <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
-                   onclick="return confirm('Deseja ocultar este chamado?');">
-                    Ocultar
-                </a>
+                <!-- Ocultar (SÓ SE ESTIVER FECHADO) -->
+                {% if t[3] == 'Fechado' %}
+                    <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
+                       onclick="return confirm('Deseja ocultar este chamado?');">
+                        Ocultar
+                    </a>
+                {% endif %}
             </div>
         {% else %}
             <p class="vazio">Nenhum chamado fechado.</p>
@@ -137,7 +132,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 

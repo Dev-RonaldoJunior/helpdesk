@@ -449,25 +449,18 @@ def close_ticket(ticket_id):
 
 @app.route('/hide-ticket/<int:ticket_id>')
 def hide_ticket(ticket_id):
-    """
-    Oculta um ticket:
-    - Somente atendente (1) e admin (2)
-    - Marca is_hidden = 1
-    - Registra hidden_by e hidden_at
-    """
-
     if session.get('nivel') not in [1, 2]:
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Só pode ocultar se estiver fechado
     cursor.execute("""
         UPDATE tickets
-        SET is_hidden = 1,
-            hidden_by = ?,
-            hidden_at = ?
+        SET is_hidden = 1, hidden_by = ?, hidden_at = ?
         WHERE id = ?
+          AND status = 'Fechado'
     """, (
         session['user_id'],
         datetime.now().strftime('%d/%m/%Y %H:%M'),
@@ -478,6 +471,7 @@ def hide_ticket(ticket_id):
     conn.close()
 
     return redirect(url_for('dashboard'))
+
 
 
 # ============================================================
