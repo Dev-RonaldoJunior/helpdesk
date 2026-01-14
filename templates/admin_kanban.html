@@ -1,272 +1,228 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Admin - Help Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Painel Admin{% endblock %}
 
-<h1>Painel do Administrador</h1>
+{% block content %}
+<h1>👑 Painel do Administrador</h1>
 
-<form method="GET" action="{{ url_for('buscar_ticket') }}">
-    <input type="text" name="ticket_id" placeholder="Buscar chamado pelo número (ex: 12)" required>
+<form action="{{ url_for('buscar_ticket') }}" method="get">
+    <label>Buscar chamado pelo número:</label>
+    <input type="text" name="ticket_id" placeholder="Ex: 12">
     <button type="submit">Buscar</button>
 </form>
 
-<hr>
-
-<p><strong>Perfil:</strong> Administrador</p>
-
-<p>
-    <a href="{{ url_for('logout') }}">Logout</a>
-</p>
-
 <div class="kanban">
 
-    <!-- ==================== COLUNA: ABERTO ==================== -->
+    <!-- ABERTOS -->
     <div class="coluna">
-        <h3>Aberto</h3>
+        <h3>🟢 Abertos</h3>
 
-        {% for t in abertos %}
-            <div class="card card-badge">
+        {% if abertos %}
+            {% for item in abertos %}
+                {% set t = item.ticket %}
+                <div class="card card-ticket">
 
-                {% set count = unread_counts.get(t['id'], 0) %}
-                {% if count > 0 %}
-                    <div class="badge-corner badge-red">{{ count }}</div>
-                {% endif %}
+                    <div class="card-badges">
+                        {% if item.unread_count > 0 %}
+                            <span class="badge badge-red badge-count">{{ item.unread_count }}</span>
+                        {% endif %}
+                        {% if item.has_status_update %}
+                            <span class="badge badge-yellow"></span>
+                        {% endif %}
+                    </div>
 
-                <strong>
-                    <a href="{{ url_for('ticket_detail', ticket_id=t['id']) }}">
-                        #{{ t['id'] }} - {{ t['titulo'] }}
-                    </a>
-                </strong>
+                    <strong>
+                        <a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">
+                            Chamado #{{ t.id }} - {{ t.titulo }}
+                        </a>
+                    </strong>
 
-                <p>{{ t['descricao'] }}</p>
+                    <p>{{ t.descricao }}</p>
 
-                <small>
-                    <strong>Criado por:</strong> {{ t['username'] }}<br>
-                    <strong>Criado em:</strong> {{ t['created_at'] }}<br>
-                    <strong>Status:</strong> {{ t['status'] }}
-                </small>
-
-                <br><br>
-
-                <a href="{{ url_for('start_ticket', ticket_id=t['id']) }}">
-                    Iniciar atendimento
-                </a>
-            </div>
+                    <small>
+                        Criado em: {{ t.created_at }} <br>
+                        Criador: {{ t.creator_username }} <br>
+                        Status: {{ t.status }} <br>
+                        Atendente: {{ t.attendant_username or "—" }}
+                    </small>
+                </div>
+            {% endfor %}
         {% else %}
             <p class="vazio">Nenhum chamado aberto.</p>
-        {% endfor %}
+        {% endif %}
 
         <div class="paginacao">
             {% if abertos_has_prev %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page-1,
-                    andamento_page=andamento_page,
-                    fechados_page=fechados_page,
-                    ocultados_page=ocultados_page
-                ) }}">⬅</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page-1, andamento_page=andamento_page, fechados_page=fechados_page, ocultados_page=ocultados_page) }}">⬅ Anterior</a>
             {% endif %}
-            <strong>{{ abertos_page }}</strong>
+            <span>Página {{ abertos_page }}</span>
             {% if abertos_has_next %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page+1,
-                    andamento_page=andamento_page,
-                    fechados_page=fechados_page,
-                    ocultados_page=ocultados_page
-                ) }}">➡</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page+1, andamento_page=andamento_page, fechados_page=fechados_page, ocultados_page=ocultados_page) }}">Próxima ➡</a>
             {% endif %}
         </div>
     </div>
 
 
-    <!-- ==================== COLUNA: EM ANDAMENTO ==================== -->
+    <!-- EM ANDAMENTO -->
     <div class="coluna">
-        <h3>Em andamento</h3>
+        <h3>🟡 Em andamento</h3>
 
-        {% for t in andamento %}
-            <div class="card card-badge">
+        {% if andamento %}
+            {% for item in andamento %}
+                {% set t = item.ticket %}
+                <div class="card card-ticket">
 
-                {% set count = unread_counts.get(t['id'], 0) %}
-                {% if count > 0 %}
-                    <div class="badge-corner badge-red">{{ count }}</div>
-                {% endif %}
+                    <div class="card-badges">
+                        {% if item.unread_count > 0 %}
+                            <span class="badge badge-red badge-count">{{ item.unread_count }}</span>
+                        {% endif %}
+                        {% if item.has_status_update %}
+                            <span class="badge badge-yellow"></span>
+                        {% endif %}
+                    </div>
 
-                <strong>
-                    <a href="{{ url_for('ticket_detail', ticket_id=t['id']) }}">
-                        #{{ t['id'] }} - {{ t['titulo'] }}
-                    </a>
-                </strong>
+                    <strong>
+                        <a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">
+                            Chamado #{{ t.id }} - {{ t.titulo }}
+                        </a>
+                    </strong>
 
-                <p>{{ t['descricao'] }}</p>
+                    <p>{{ t.descricao }}</p>
 
-                <small>
-                    <strong>Criado por:</strong> {{ t['username'] }}<br>
-                    <strong>Atendente:</strong> {{ t['username_1'] or "—" }}<br>
-                    <strong>Iniciado em:</strong> {{ t['started_at'] or "—" }}<br>
-                    <strong>Status:</strong> {{ t['status'] }}
-                </small>
-
-                <br><br>
-
-                <a href="{{ url_for('close_ticket', ticket_id=t['id']) }}">
-                    Fechar chamado
-                </a>
-            </div>
+                    <small>
+                        Criado em: {{ t.created_at }} <br>
+                        Criador: {{ t.creator_username }} <br>
+                        Status: {{ t.status }} <br>
+                        Atendente: {{ t.attendant_username or "—" }}
+                    </small>
+                </div>
+            {% endfor %}
         {% else %}
             <p class="vazio">Nenhum chamado em andamento.</p>
-        {% endfor %}
+        {% endif %}
 
         <div class="paginacao">
             {% if andamento_has_prev %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page,
-                    andamento_page=andamento_page-1,
-                    fechados_page=fechados_page,
-                    ocultados_page=ocultados_page
-                ) }}">⬅</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page, andamento_page=andamento_page-1, fechados_page=fechados_page, ocultados_page=ocultados_page) }}">⬅ Anterior</a>
             {% endif %}
-            <strong>{{ andamento_page }}</strong>
+            <span>Página {{ andamento_page }}</span>
             {% if andamento_has_next %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page,
-                    andamento_page=andamento_page+1,
-                    fechados_page=fechados_page,
-                    ocultados_page=ocultados_page
-                ) }}">➡</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page, andamento_page=andamento_page+1, fechados_page=fechados_page, ocultados_page=ocultados_page) }}">Próxima ➡</a>
             {% endif %}
         </div>
     </div>
 
 
-    <!-- ==================== COLUNA: FECHADO ==================== -->
+    <!-- FECHADOS -->
     <div class="coluna">
-        <h3>Fechado</h3>
+        <h3>🔴 Fechados</h3>
 
-        {% for t in fechados %}
-            <div class="card card-badge">
+        {% if fechados %}
+            {% for item in fechados %}
+                {% set t = item.ticket %}
+                <div class="card card-ticket">
 
-                {% set count = unread_counts.get(t['id'], 0) %}
-                {% if count > 0 %}
-                    <div class="badge-corner badge-red">{{ count }}</div>
-                {% endif %}
+                    <div class="card-badges">
+                        {% if item.unread_count > 0 %}
+                            <span class="badge badge-red badge-count">{{ item.unread_count }}</span>
+                        {% endif %}
+                        {% if item.has_status_update %}
+                            <span class="badge badge-yellow"></span>
+                        {% endif %}
+                    </div>
 
-                <strong>
-                    <a href="{{ url_for('ticket_detail', ticket_id=t['id']) }}">
-                        #{{ t['id'] }} - {{ t['titulo'] }}
-                    </a>
-                </strong>
+                    <strong>
+                        <a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">
+                            Chamado #{{ t.id }} - {{ t.titulo }}
+                        </a>
+                    </strong>
 
-                <p>{{ t['descricao'] }}</p>
+                    <p>{{ t.descricao }}</p>
 
-                <small>
-                    <strong>Criado por:</strong> {{ t['username'] }}<br>
-                    <strong>Atendente:</strong> {{ t['username_1'] or "—" }}<br>
-                    <strong>Fechado em:</strong> {{ t['closed_at'] or "—" }}<br>
-                    <strong>Status:</strong> {{ t['status'] }}
-                </small>
+                    <small>
+                        Criado em: {{ t.created_at }} <br>
+                        Criador: {{ t.creator_username }} <br>
+                        Status: {{ t.status }} <br>
+                        Atendente: {{ t.attendant_username or "—" }}
+                    </small>
 
-                <br><br>
-
-                <a href="{{ url_for('hide_ticket', ticket_id=t['id']) }}"
-                   onclick="return confirm('Deseja ocultar este chamado?');">
-                    Ocultar
-                </a>
-            </div>
+                    <br>
+                    <a href="{{ url_for('hide_ticket', ticket_id=t.id) }}">🗑 Ocultar</a>
+                </div>
+            {% endfor %}
         {% else %}
             <p class="vazio">Nenhum chamado fechado.</p>
-        {% endfor %}
+        {% endif %}
 
         <div class="paginacao">
             {% if fechados_has_prev %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page,
-                    andamento_page=andamento_page,
-                    fechados_page=fechados_page-1,
-                    ocultados_page=ocultados_page
-                ) }}">⬅</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page, andamento_page=andamento_page, fechados_page=fechados_page-1, ocultados_page=ocultados_page) }}">⬅ Anterior</a>
             {% endif %}
-            <strong>{{ fechados_page }}</strong>
+            <span>Página {{ fechados_page }}</span>
             {% if fechados_has_next %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page,
-                    andamento_page=andamento_page,
-                    fechados_page=fechados_page+1,
-                    ocultados_page=ocultados_page
-                ) }}">➡</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page, andamento_page=andamento_page, fechados_page=fechados_page+1, ocultados_page=ocultados_page) }}">Próxima ➡</a>
             {% endif %}
         </div>
     </div>
 
 
-    <!-- ==================== COLUNA: OCULTADOS ==================== -->
+    <!-- OCULTADOS -->
     <div class="coluna">
-        <h3>Ocultados</h3>
+        <h3>⚫ Ocultados</h3>
 
-        {% for t in ocultados %}
-            <div class="card card-badge">
+        {% if ocultados %}
+            {% for item in ocultados %}
+                {% set t = item.ticket %}
+                <div class="card card-ticket">
 
-                {% set count = unread_counts.get(t['id'], 0) %}
-                {% if count > 0 %}
-                    <div class="badge-corner badge-red">{{ count }}</div>
-                {% endif %}
+                    <div class="card-badges">
+                        {% if item.unread_count > 0 %}
+                            <span class="badge badge-red badge-count">{{ item.unread_count }}</span>
+                        {% endif %}
+                        {% if item.has_status_update %}
+                            <span class="badge badge-yellow"></span>
+                        {% endif %}
+                    </div>
 
-                <strong>
-                    <a href="{{ url_for('ticket_detail', ticket_id=t['id']) }}">
-                        #{{ t['id'] }} - {{ t['titulo'] }}
-                    </a>
-                </strong>
+                    <strong>
+                        <a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">
+                            Chamado #{{ t.id }} - {{ t.titulo }}
+                        </a>
+                    </strong>
 
-                <p>{{ t['descricao'] }}</p>
+                    <p>{{ t.descricao }}</p>
 
-                <small>
-                    <strong>Criado por:</strong> {{ t['username'] }}<br>
+                    <small>
+                        Criado em: {{ t.created_at }} <br>
+                        Criador: {{ t.creator_username }} <br>
+                        Status: {{ t.status }} <br>
+                        Ocultado por: {{ t.hider_username or "—" }} <br>
+                        Ocultado em: {{ t.hidden_at or "—" }}
+                    </small>
 
-                    {% if t['username_2'] %}
-                        <strong>Ocultado por:</strong> {{ t['username_2'] }}<br>
-                    {% endif %}
-
-                    {% if t['hidden_at'] %}
-                        <strong>Ocultado em:</strong> {{ t['hidden_at'] }}<br>
-                    {% endif %}
-                </small>
-
-                <br><br>
-
-                <a href="{{ url_for('unhide_ticket', ticket_id=t['id']) }}"
-                   onclick="return confirm('Deseja desocultar este chamado?');">
-                    Desocultar
-                </a>
-            </div>
+                    <br>
+                    <a href="{{ url_for('unhide_ticket', ticket_id=t.id) }}">♻ Desocultar</a>
+                </div>
+            {% endfor %}
         {% else %}
             <p class="vazio">Nenhum chamado ocultado.</p>
-        {% endfor %}
+        {% endif %}
 
         <div class="paginacao">
             {% if ocultados_has_prev %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page,
-                    andamento_page=andamento_page,
-                    fechados_page=fechados_page,
-                    ocultados_page=ocultados_page-1
-                ) }}">⬅</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page, andamento_page=andamento_page, fechados_page=fechados_page, ocultados_page=ocultados_page-1) }}">⬅ Anterior</a>
             {% endif %}
-            <strong>{{ ocultados_page }}</strong>
+            <span>Página {{ ocultados_page }}</span>
             {% if ocultados_has_next %}
-                <a href="{{ url_for('admin',
-                    abertos_page=abertos_page,
-                    andamento_page=andamento_page,
-                    fechados_page=fechados_page,
-                    ocultados_page=ocultados_page+1
-                ) }}">➡</a>
+                <a href="{{ url_for('admin', abertos_page=abertos_page, andamento_page=andamento_page, fechados_page=fechados_page, ocultados_page=ocultados_page+1) }}">Próxima ➡</a>
             {% endif %}
         </div>
     </div>
 
 </div>
 
-</body>
-</html>
+<br>
+<div style="text-align:center;">
+    <a href="{{ url_for('logout') }}">🚪 Sair</a>
+</div>
+
+{% endblock %}

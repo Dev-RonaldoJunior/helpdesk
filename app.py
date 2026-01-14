@@ -36,103 +36,61 @@ def validar_username(username):
 
 
 # ============================================================
-# FUNÇÃO: MARCAR COMO VISTO (SÓ PRA QUEM ABRIU)
+# HELPERS: COLUNAS "SEEN" POR PERFIL
 # ============================================================
-def marcar_ticket_como_visto(ticket_id):
-    """
-    Marca o ticket como visto dependendo do perfil logado:
-    - user_seen_comment_id
-    - attendant_seen_comment_id
-    - admin_seen_comment_id
-
-    Isso NÃO apaga notificação pros outros.
-    """
-    if "user_id" not in session:
-        return
-
+def get_seen_comment_col():
     nivel = session.get("nivel")
-    user_id = session.get("user_id")
-
-    if nivel not in [0, 1, 2]:
-        return
-
-    # Qual coluna vamos atualizar
     if nivel == 0:
-        coluna = "user_seen_comment_id"
-    elif nivel == 1:
-        coluna = "attendant_seen_comment_id"
-    else:
-        coluna = "admin_seen_comment_id"
+        return "user_seen_comment_id"
+    if nivel == 1:
+        return "attendant_seen_comment_id"
+    return "admin_seen_comment_id"
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
 
-    # pega o último comentário do ticket
-    cursor.execute("""
-        SELECT MAX(id) AS last_id
-        FROM ticket_comments
-        WHERE ticket_id = ?
-    """, (ticket_id,))
-    last_comment = cursor.fetchone()
-
-    last_id = last_comment["last_id"] if last_comment and last_comment["last_id"] else None
-
-    # Se não existe comentário, não precisa marcar nada
-    if not last_id:
-        conn.close()
-        return
-
-    # Atualiza o seen_comment_id do perfil atual
-    cursor.execute(f"""
-        UPDATE tickets
-        SET {coluna} = ?
-        WHERE id = ?
-    """, (last_id, ticket_id))
-
-    conn.commit()
-    conn.close()
+def get_seen_status_col():
+    nivel = session.get("nivel")
+    if nivel == 0:
+        return "user_seen_status_at"
+    if nivel == 1:
+        return "attendant_seen_status_at"
+    return "admin_seen_status_at"
 
 
 # ============================================================
-# FUNÇÃO: CONTADOR DE NÃO LIDAS (SÓ DO OUTRO AUTOR)
+# NOTIFICAÇÕES 🔴 (CONTADOR) + 🟡 (STATUS)
 # ============================================================
-def get_unread_count(ticket_id):
+def get_unread_comment_count(ticket_id):
     """
-    Retorna quantas mensagens novas existem para o usuário logado
-    considerando:
-    - só conta mensagens feitas por OUTRA pessoa (user_id != logado)
-    - usa seen_comment_id específico por perfil
+    Retorna quantos comentários NÃO LIDOS existem para o usuário logado
+    naquele ticket.
+
+    Regras:
+    - Só conta comentários feitos por OUTRA pessoa (não o próprio autor)
+    - Usa seen_comment_id específico do perfil (user/attendant/admin)
+    - Admin ver NÃO marca como lido pros outros
     """
     if "user_id" not in session:
         return 0
 
-    nivel = session.get("nivel")
-    user_id = session.get("user_id")
-
-    if nivel not in [0, 1, 2]:
-        return 0
-
-    if nivel == 0:
-        coluna_seen = "user_seen_comment_id"
-    elif nivel == 1:
-        coluna_seen = "attendant_seen_comment_id"
-    else:
-        coluna_seen = "admin_seen_comment_id"
+    user_id = session["user_id"]
+    seen_col = get_seen_comment_col()
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # pega o seen_comment_id atual
     cursor.execute(f"""
-        SELECT {coluna_seen} AS seen_id
+        SELECT {seen_col} AS seen_id
         FROM tickets
         WHERE id = ?
     """, (ticket_id,))
     row = cursor.fetchone()
 
-    seen_id = row["seen_id"] if row and row["seen_id"] else 0
+    if not row:
+        conn.close()
+        return 0
 
-    # conta comentários novos (id > seen_id) feitos por OUTRO autor
+    seen_id = row["seen_id"] or 0
+
     cursor.execute("""
         SELECT COUNT(*) AS total
         FROM ticket_comments
@@ -147,15 +105,94 @@ def get_unread_count(ticket_id):
     return total
 
 
-def montar_unread_counts(tickets):
+def get_has_status_update(ticket):
     """
-    Recebe lista de tickets e devolve dict:
-    { ticket_id: unread_count }
+    🟡 status atualizado aparece quando last_status_at > seen_status_at
+    e a mudança foi feita por outra pessoa.
     """
-    unread = {}
-    for t in tickets:
-        unread[t["id"]] = get_unread_count(t["id"])
-    return unread
+    if "user_id" not in session:
+        return False
+
+    user_id = session["user_id"]
+    seen_col = get_seen_status_col()
+
+    seen_status_at = ticket[seen_col]
+    last_status_at = ticket["last_status_at"]
+    last_status_by = ticket["last_status_by"]
+
+    # Se nunca teve status update registrado
+    if not last_status_at:
+        return False
+
+    # Se o próprio usuário mudou o status, não notifica ele mesmo
+    if last_status_by == user_id:
+        return False
+
+    # Se nunca viu status, mostra
+    if not seen_status_at:
+        return True
+
+    # Comparação por string funciona pois formato é sempre igual dd/mm/yyyy hh:mm
+    return last_status_at > seen_status_at
+
+
+def marcar_ticket_como_visto(ticket_id):
+    """
+    Marca como visto:
+    - Comentários: salva o ÚLTIMO comment_id do ticket
+    - Status: salva agora em seen_status_at
+    """
+    if "user_id" not in session:
+        return
+
+    seen_comment_col = get_seen_comment_col()
+    seen_status_col = get_seen_status_col()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Pega último comentário do ticket
+    cursor.execute("""
+        SELECT id
+        FROM ticket_comments
+        WHERE ticket_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, (ticket_id,))
+    last_comment = cursor.fetchone()
+
+    last_comment_id = last_comment["id"] if last_comment else 0
+
+    cursor.execute(f"""
+        UPDATE tickets
+        SET {seen_comment_col} = ?,
+            {seen_status_col} = ?
+        WHERE id = ?
+    """, (last_comment_id, now_str(), ticket_id))
+
+    conn.commit()
+    conn.close()
+
+
+def preparar_lista_com_badges(lista):
+    """
+    Retorna lista com:
+    - ticket
+    - unread_count (🔴)
+    - has_status_update (🟡)
+    """
+    resultado = []
+    for t in lista:
+        unread_count = get_unread_comment_count(t["id"])
+        has_status_update = get_has_status_update(t)
+
+        resultado.append({
+            "ticket": t,
+            "unread_count": unread_count,
+            "has_status_update": has_status_update
+        })
+
+    return resultado
 
 
 # ============================================================
@@ -277,15 +314,18 @@ def create_ticket():
 
         cursor.execute("""
             INSERT INTO tickets
-            (titulo, descricao, status, user_id, created_at, is_hidden)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (titulo, descricao, status, user_id, created_at, is_hidden,
+             last_status_at, last_status_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             titulo,
             descricao,
             'Aberto',
             session['user_id'],
             agora,
-            0
+            0,
+            agora,
+            session['user_id']
         ))
 
         conn.commit()
@@ -315,7 +355,9 @@ def start_ticket(ticket_id):
         UPDATE tickets
         SET status = ?,
             attendant_id = ?,
-            started_at = ?
+            started_at = ?,
+            last_status_at = ?,
+            last_status_by = ?
         WHERE id = ?
           AND status = 'Aberto'
           AND is_hidden = 0
@@ -323,6 +365,8 @@ def start_ticket(ticket_id):
         'Em andamento',
         session['user_id'],
         agora,
+        agora,
+        session['user_id'],
         ticket_id
     ))
 
@@ -350,13 +394,17 @@ def close_ticket(ticket_id):
     cursor.execute("""
         UPDATE tickets
         SET status = ?,
-            closed_at = ?
+            closed_at = ?,
+            last_status_at = ?,
+            last_status_by = ?
         WHERE id = ?
           AND status = 'Em andamento'
           AND is_hidden = 0
     """, (
         'Fechado',
         agora,
+        agora,
+        session['user_id'],
         ticket_id
     ))
 
@@ -433,7 +481,7 @@ def unhide_ticket(ticket_id):
 
 
 # ============================================================
-# DETALHE DO CHAMADO + MARCAR COMO VISTO
+# DETALHE DO CHAMADO + MARCAR COMO VISTO AUTOMATICAMENTE
 # ============================================================
 @app.route('/ticket/<int:ticket_id>')
 def ticket_detail(ticket_id):
@@ -445,7 +493,6 @@ def ticket_detail(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Info do ticket (pra mensagem)
     cursor.execute("""
         SELECT
             tickets.id,
@@ -465,17 +512,13 @@ def ticket_detail(ticket_id):
         flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    status = info["status"]
-    is_hidden = info["is_hidden"]
-    atendente = info["attendant_name"] or "—"
-
     # Se ocultado:
-    if is_hidden == 1 and nivel != 2:
+    if info["is_hidden"] == 1 and nivel != 2:
         conn.close()
         flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    # Busca ticket completo com base no nível
+    # Carrega ticket com permissões
     ticket = None
 
     if nivel == 2:
@@ -489,9 +532,9 @@ def ticket_detail(ticket_id):
                 tickets.started_at,
                 tickets.closed_at,
                 tickets.is_hidden,
-                creator.username AS creator_name,
-                attendant.username AS attendant_name,
-                hider.username AS hider_name,
+                creator.username AS creator_username,
+                attendant.username AS attendant_username,
+                hider.username AS hider_username,
                 tickets.hidden_at
             FROM tickets
             JOIN users AS creator ON tickets.user_id = creator.id
@@ -512,9 +555,9 @@ def ticket_detail(ticket_id):
                 tickets.started_at,
                 tickets.closed_at,
                 tickets.is_hidden,
-                creator.username AS creator_name,
-                attendant.username AS attendant_name,
-                hider.username AS hider_name,
+                creator.username AS creator_username,
+                attendant.username AS attendant_username,
+                hider.username AS hider_username,
                 tickets.hidden_at
             FROM tickets
             JOIN users AS creator ON tickets.user_id = creator.id
@@ -537,9 +580,9 @@ def ticket_detail(ticket_id):
                 tickets.started_at,
                 tickets.closed_at,
                 tickets.is_hidden,
-                creator.username AS creator_name,
-                attendant.username AS attendant_name,
-                hider.username AS hider_name,
+                creator.username AS creator_username,
+                attendant.username AS attendant_username,
+                hider.username AS hider_username,
                 tickets.hidden_at
             FROM tickets
             JOIN users AS creator ON tickets.user_id = creator.id
@@ -554,17 +597,9 @@ def ticket_detail(ticket_id):
         """, (ticket_id, session['user_id']))
         ticket = cursor.fetchone()
 
-    # Se não tem permissão
     if not ticket:
         conn.close()
-
-        if status == "Em andamento":
-            flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.", "warning")
-        elif status == "Fechado":
-            flash(f"Chamado Nº: {ticket_id} foi encerrado por {atendente}.", "info")
-        else:
-            flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
-
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
     # Comentários
@@ -583,7 +618,7 @@ def ticket_detail(ticket_id):
 
     conn.close()
 
-    # Marca como visto só pra quem abriu
+    # ✅ Marca como visto só pra quem abriu (não afeta os outros)
     marcar_ticket_como_visto(ticket_id)
 
     return render_template('ticket_detail.html', ticket=ticket, comments=comments)
@@ -654,8 +689,6 @@ def add_comment(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    agora = now_str()
-
     cursor.execute("""
         INSERT INTO ticket_comments (ticket_id, user_id, comment, created_at)
         VALUES (?, ?, ?, ?)
@@ -663,7 +696,7 @@ def add_comment(ticket_id):
         ticket_id,
         session["user_id"],
         comment,
-        agora
+        now_str()
     ))
 
     conn.commit()
@@ -716,7 +749,7 @@ def buscar_ticket():
 
 
 # ============================================================
-# PAGINAÇÃO POR STATUS
+# PAGINAÇÃO
 # ============================================================
 def paginar_por_status(query_base, params_base, page):
     offset = (page - 1) * PER_PAGE
@@ -764,8 +797,14 @@ def meus_chamados():
             tickets.started_at,
             tickets.closed_at,
             tickets.is_hidden,
-            creator.username,
-            attendant.username AS attendant_name
+            creator.username AS creator_username,
+            attendant.username AS attendant_username,
+
+            tickets.last_status_at,
+            tickets.last_status_by,
+            tickets.user_seen_status_at,
+            tickets.attendant_seen_status_at,
+            tickets.admin_seen_status_at
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
@@ -791,18 +830,12 @@ def meus_chamados():
         fechados_page
     )
 
-    # Monta unread_counts
-    unread_counts = {}
-    unread_counts.update(montar_unread_counts(abertos))
-    unread_counts.update(montar_unread_counts(andamento))
-    unread_counts.update(montar_unread_counts(fechados))
-
     return render_template(
         'meus_chamados_kanban.html',
-        abertos=abertos,
-        andamento=andamento,
-        fechados=fechados,
-        unread_counts=unread_counts,
+
+        abertos=preparar_lista_com_badges(abertos),
+        andamento=preparar_lista_com_badges(andamento),
+        fechados=preparar_lista_com_badges(fechados),
 
         abertos_page=abertos_page,
         abertos_has_prev=abertos_has_prev,
@@ -843,8 +876,14 @@ def fila():
             tickets.started_at,
             tickets.closed_at,
             tickets.is_hidden,
-            creator.username,
-            attendant.username AS attendant_name
+            creator.username AS creator_username,
+            attendant.username AS attendant_username,
+
+            tickets.last_status_at,
+            tickets.last_status_by,
+            tickets.user_seen_status_at,
+            tickets.attendant_seen_status_at,
+            tickets.admin_seen_status_at
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
@@ -869,17 +908,12 @@ def fila():
         fechados_page
     )
 
-    unread_counts = {}
-    unread_counts.update(montar_unread_counts(abertos))
-    unread_counts.update(montar_unread_counts(andamento))
-    unread_counts.update(montar_unread_counts(fechados))
-
     return render_template(
         'fila_kanban.html',
-        abertos=abertos,
-        andamento=andamento,
-        fechados=fechados,
-        unread_counts=unread_counts,
+
+        abertos=preparar_lista_com_badges(abertos),
+        andamento=preparar_lista_com_badges(andamento),
+        fechados=preparar_lista_com_badges(fechados),
 
         abertos_page=abertos_page,
         abertos_has_prev=abertos_has_prev,
@@ -921,10 +955,16 @@ def admin():
             tickets.started_at,
             tickets.closed_at,
             tickets.is_hidden,
-            creator.username,
-            attendant.username AS attendant_name,
-            hider.username AS hider_name,
-            tickets.hidden_at
+            creator.username AS creator_username,
+            attendant.username AS attendant_username,
+            hider.username AS hider_username,
+            tickets.hidden_at,
+
+            tickets.last_status_at,
+            tickets.last_status_by,
+            tickets.user_seen_status_at,
+            tickets.attendant_seen_status_at,
+            tickets.admin_seen_status_at
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
@@ -956,19 +996,13 @@ def admin():
         ocultados_page
     )
 
-    unread_counts = {}
-    unread_counts.update(montar_unread_counts(abertos))
-    unread_counts.update(montar_unread_counts(andamento))
-    unread_counts.update(montar_unread_counts(fechados))
-    unread_counts.update(montar_unread_counts(ocultados))
-
     return render_template(
         'admin_kanban.html',
-        abertos=abertos,
-        andamento=andamento,
-        fechados=fechados,
-        ocultados=ocultados,
-        unread_counts=unread_counts,
+
+        abertos=preparar_lista_com_badges(abertos),
+        andamento=preparar_lista_com_badges(andamento),
+        fechados=preparar_lista_com_badges(fechados),
+        ocultados=preparar_lista_com_badges(ocultados),
 
         abertos_page=abertos_page,
         abertos_has_prev=abertos_has_prev,
