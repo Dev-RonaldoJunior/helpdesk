@@ -1,8 +1,4 @@
-# ============================================================
-# IMPORTAÇÕES
-# ============================================================
-
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 import sqlite3
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,18 +6,13 @@ import re
 
 PER_PAGE = 3
 
-# ============================================================
-# CONFIGURAÇÃO DO APP
-# ============================================================
-
 app = Flask(__name__)
 app.secret_key = 'chave-secreta-simples'
 
 
 # ============================================================
-# FUNÇÃO PARA CONEXÃO COM O BANCO
+# CONEXÃO COM BANCO
 # ============================================================
-
 def get_db_connection():
     conn = sqlite3.connect('database.db')
     return conn
@@ -30,7 +21,6 @@ def get_db_connection():
 # ============================================================
 # VALIDAÇÃO DE USERNAME
 # ============================================================
-
 def validar_username(username):
     if not username:
         return False
@@ -43,7 +33,6 @@ def validar_username(username):
 # ============================================================
 # LOGIN
 # ============================================================
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -58,17 +47,11 @@ def login():
         conn.close()
 
         if user:
-            # users:
-            # user[0] = id
-            # user[1] = username
-            # user[2] = email
-            # user[3] = senha_hash
-            # user[4] = is_admin (nível)
             senha_hash = user[3]
 
             if check_password_hash(senha_hash, senha):
                 session['user_id'] = user[0]
-                session['nivel'] = user[4]
+                session['nivel'] = user[4]  # 0 user | 1 atendente | 2 admin
                 return redirect(url_for('dashboard'))
 
         return "Usuário ou senha inválidos!"
@@ -79,7 +62,6 @@ def login():
 # ============================================================
 # LOGOUT
 # ============================================================
-
 @app.route('/logout')
 def logout():
     session.clear()
@@ -89,7 +71,6 @@ def logout():
 # ============================================================
 # REGISTER
 # ============================================================
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -125,9 +106,8 @@ def register():
 
 
 # ============================================================
-# DASHBOARD REDIRECT
+# DASHBOARD (REDIRECIONA POR PERFIL)
 # ============================================================
-
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
@@ -150,7 +130,6 @@ def dashboard():
 # ============================================================
 # CRIAR CHAMADO
 # ============================================================
-
 @app.route('/create-ticket', methods=['GET', 'POST'])
 def create_ticket():
     if 'user_id' not in session:
@@ -187,7 +166,6 @@ def create_ticket():
 # ============================================================
 # INICIAR ATENDIMENTO
 # ============================================================
-
 @app.route('/start-ticket/<int:ticket_id>')
 def start_ticket(ticket_id):
     if session.get('nivel') not in [1, 2]:
@@ -216,7 +194,6 @@ def start_ticket(ticket_id):
 # ============================================================
 # FECHAR CHAMADO
 # ============================================================
-
 @app.route('/close-ticket/<int:ticket_id>')
 def close_ticket(ticket_id):
     if session.get('nivel') not in [1, 2]:
@@ -242,9 +219,8 @@ def close_ticket(ticket_id):
 
 
 # ============================================================
-# OCULTAR CHAMADO (SÓ SE ESTIVER FECHADO)
+# OCULTAR CHAMADO (SÓ FECHADO)
 # ============================================================
-
 @app.route('/hide-ticket/<int:ticket_id>')
 def hide_ticket(ticket_id):
     if session.get('nivel') not in [1, 2]:
@@ -274,9 +250,8 @@ def hide_ticket(ticket_id):
 
 
 # ============================================================
-# DESOCULTAR CHAMADO (SOMENTE ADMIN)
+# DESOCULTAR CHAMADO (SÓ ADMIN)
 # ============================================================
-
 @app.route('/unhide-ticket/<int:ticket_id>')
 def unhide_ticket(ticket_id):
     if 'user_id' not in session:
@@ -305,7 +280,6 @@ def unhide_ticket(ticket_id):
 # ============================================================
 # DETALHES DO CHAMADO
 # ============================================================
-
 @app.route('/ticket/<int:ticket_id>')
 def ticket_detail(ticket_id):
     if 'user_id' not in session:
@@ -316,7 +290,35 @@ def ticket_detail(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ADMIN vê tudo
+    # Pegamos info básica antes (pra saber status, ocultado e atendente)
+    cursor.execute("""
+        SELECT
+            tickets.id,
+            tickets.status,
+            tickets.is_hidden,
+            attendant.username
+        FROM tickets
+        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        WHERE tickets.id = ?
+    """, (ticket_id,))
+    info = cursor.fetchone()
+
+    if not info:
+        conn.close()
+        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        return redirect(url_for('dashboard'))
+
+    status = info[1]
+    is_hidden = info[2]
+    atendente = info[3] or "—"
+
+    # Ocultado -> só admin pode ver
+    if is_hidden == 1 and nivel != 2:
+        conn.close()
+        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        return redirect(url_for('dashboard'))
+
+    # ADMIN (vê tudo, inclusive ocultado)
     if nivel == 2:
         cursor.execute("""
             SELECT
@@ -340,7 +342,7 @@ def ticket_detail(ticket_id):
         """, (ticket_id,))
         ticket = cursor.fetchone()
 
-    # USUÁRIO vê só o dele e não oculto
+    # USUÁRIO (só vê os próprios e não ocultados)
     elif nivel == 0:
         cursor.execute("""
             SELECT
@@ -363,17 +365,10 @@ def ticket_detail(ticket_id):
             WHERE tickets.id = ?
               AND tickets.user_id = ?
               AND tickets.is_hidden = 0
-              AND (
-                    tickets.status = 'Aberto'
-                    OR tickets.attendant_id IS NULL
-                    OR tickets.attendant_id = ?
-                  )
-        """, (ticket_id, session['user_id'], session['user_id']))
+        """, (ticket_id, session['user_id']))
         ticket = cursor.fetchone()
 
-    # ATENDENTE vê:
-    # - abertos (não ocultos)
-    # - em andamento/fechado apenas se ele for o attendant_id
+    # ATENDENTE (vê aberto + os dele)
     else:
         cursor.execute("""
             SELECT
@@ -404,29 +399,91 @@ def ticket_detail(ticket_id):
 
     conn.close()
 
+    # Se não achou (sem permissão)
     if not ticket:
-        return "Chamado não encontrado ou você não tem permissão para ver."
+        if status == "Em andamento":
+            flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.")
+        elif status == "Fechado":
+            flash(f"Chamado Nº: {ticket_id} foi encerrado por {atendente}.")
+        else:
+            flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        return redirect(url_for('dashboard'))
 
     return render_template('ticket_detail.html', ticket=ticket)
 
 
 # ============================================================
-# FUNÇÃO AUXILIAR: PAGINAÇÃO POR STATUS
+# BUSCAR CHAMADO POR NÚMERO
 # ============================================================
+@app.route('/buscar-ticket', methods=['GET'])
+def buscar_ticket():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
 
+    ticket_id = request.args.get('ticket_id', '').strip()
+
+    if not ticket_id:
+        flash("Digite o número do chamado.")
+        return redirect(url_for('dashboard'))
+
+    if not ticket_id.isdigit():
+        flash("Digite apenas o número do chamado. Ex: 12")
+        return redirect(url_for('dashboard'))
+
+    ticket_id = int(ticket_id)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            tickets.id,
+            tickets.status,
+            tickets.is_hidden,
+            attendant.username
+        FROM tickets
+        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        WHERE tickets.id = ?
+    """, (ticket_id,))
+    ticket = cursor.fetchone()
+    conn.close()
+
+    if not ticket:
+        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        return redirect(url_for('dashboard'))
+
+    status = ticket[1]
+    is_hidden = ticket[2]
+    atendente = ticket[3] or "—"
+
+    # Ocultado -> admin pode ver, outros não
+    if is_hidden == 1:
+        if session.get('nivel') == 2:
+            return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        return redirect(url_for('dashboard'))
+
+    # Não ocultado -> tenta abrir normal
+    return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+
+# ============================================================
+# FUNÇÃO DE PAGINAÇÃO (GENÉRICA)
+# ============================================================
 def paginar_por_status(query_base, params_base, page):
     offset = (page - 1) * PER_PAGE
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Total
     cursor.execute(f"SELECT COUNT(*) FROM ({query_base})", params_base)
     total = cursor.fetchone()[0]
 
-    # Página
-    cursor.execute(query_base + " ORDER BY tickets.id DESC LIMIT ? OFFSET ?",
-                   params_base + (PER_PAGE, offset))
+    cursor.execute(
+        query_base + " ORDER BY tickets.id DESC LIMIT ? OFFSET ?",
+        params_base + (PER_PAGE, offset)
+    )
     itens = cursor.fetchall()
 
     conn.close()
@@ -438,9 +495,8 @@ def paginar_por_status(query_base, params_base, page):
 
 
 # ============================================================
-# MEUS CHAMADOS (USUÁRIO) - PAGINAÇÃO POR COLUNA
+# MEUS CHAMADOS (USUÁRIO)
 # ============================================================
-
 @app.route('/meus-chamados')
 def meus_chamados():
     if 'user_id' not in session:
@@ -472,21 +528,18 @@ def meus_chamados():
           AND tickets.user_id = ?
     """
 
-    # ABERTOS
     abertos, abertos_has_prev, abertos_has_next = paginar_por_status(
         base_select + " AND tickets.status = 'Aberto'",
         (session['user_id'],),
         abertos_page
     )
 
-    # ANDAMENTO (só aparece se for dele ou se o atendente for ele)
     andamento, andamento_has_prev, andamento_has_next = paginar_por_status(
         base_select + " AND tickets.status = 'Em andamento'",
         (session['user_id'],),
         andamento_page
     )
 
-    # FECHADOS
     fechados, fechados_has_prev, fechados_has_next = paginar_por_status(
         base_select + " AND tickets.status = 'Fechado'",
         (session['user_id'],),
@@ -514,9 +567,8 @@ def meus_chamados():
 
 
 # ============================================================
-# FILA (ATENDENTE) - PAGINAÇÃO POR COLUNA
+# FILA (ATENDENTE)
 # ============================================================
-
 @app.route('/fila')
 def fila():
     if 'user_id' not in session:
@@ -529,7 +581,6 @@ def fila():
     andamento_page = int(request.args.get('andamento_page', 1))
     fechados_page = int(request.args.get('fechados_page', 1))
 
-    # ABERTOS: todo mundo atendente vê
     base_abertos = """
         SELECT
             tickets.id,
@@ -558,7 +609,6 @@ def fila():
         abertos_page
     )
 
-    # EM ANDAMENTO: atendente vê só os dele
     base_andamento = """
         SELECT
             tickets.id,
@@ -588,7 +638,6 @@ def fila():
         andamento_page
     )
 
-    # FECHADOS: atendente vê só os dele
     base_fechados = """
         SELECT
             tickets.id,
@@ -639,9 +688,8 @@ def fila():
 
 
 # ============================================================
-# ADMIN - PAGINAÇÃO POR COLUNA + OCULTADOS
+# ADMIN
 # ============================================================
-
 @app.route('/admin')
 def admin():
     if 'user_id' not in session:
@@ -676,28 +724,24 @@ def admin():
         WHERE 1 = 1
     """
 
-    # ABERTOS
     abertos, abertos_has_prev, abertos_has_next = paginar_por_status(
         base_admin + " AND tickets.status = 'Aberto' AND tickets.is_hidden = 0",
         (),
         abertos_page
     )
 
-    # ANDAMENTO
     andamento, andamento_has_prev, andamento_has_next = paginar_por_status(
         base_admin + " AND tickets.status = 'Em andamento' AND tickets.is_hidden = 0",
         (),
         andamento_page
     )
 
-    # FECHADOS
     fechados, fechados_has_prev, fechados_has_next = paginar_por_status(
         base_admin + " AND tickets.status = 'Fechado' AND tickets.is_hidden = 0",
         (),
         fechados_page
     )
 
-    # OCULTADOS
     ocultados, ocultados_has_prev, ocultados_has_next = paginar_por_status(
         base_admin + " AND tickets.is_hidden = 1",
         (),
@@ -730,8 +774,7 @@ def admin():
 
 
 # ============================================================
-# START APP
+# INICIAR APP
 # ============================================================
-
 if __name__ == '__main__':
     app.run(debug=True)

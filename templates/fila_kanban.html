@@ -1,14 +1,17 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fila de Chamados - Help Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Fila de Chamados - Help Desk{% endblock %}
+
+{% block content %}
 
 <h1>Fila de Chamados</h1>
+
+<form method="GET" action="{{ url_for('buscar_ticket') }}">
+    <input type="text" name="ticket_id" placeholder="Buscar chamado pelo número (ex: 12)" required>
+    <button type="submit">Buscar</button>
+</form>
+
+<hr>
 
 {% if session.get('nivel') == 2 %}
     <p><strong>Perfil:</strong> Administrador</p>
@@ -30,7 +33,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -83,7 +86,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -137,7 +140,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -188,5 +191,4 @@
 
 </div>
 
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,4 @@
+python create_db.py
+python create_tickets.py
+python create_logins.py
+python app.py

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Help Desk{% endblock %}</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- TOAST (POPUP) -->
+    <div id="toast-container"></div>
+
+    {% block content %}{% endblock %}
+
+    <!-- JSON seguro (o editor não reclama) -->
+    <script id="flashed-messages" type="application/json">
+        {{ get_flashed_messages() | tojson }}
+    </script>
+
+    <script>
+        function showToast(message, type="info") {
+            const container = document.getElementById("toast-container");
+
+            const toast = document.createElement("div");
+            toast.className = `toast toast-${type}`;
+
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button class="toast-close" aria-label="Fechar">×</button>
+            `;
+
+            container.appendChild(toast);
+
+            toast.querySelector(".toast-close").addEventListener("click", () => {
+                toast.remove();
+            });
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Lê o JSON do script application/json
+        const flashedMessagesEl = document.getElementById("flashed-messages");
+        const flashedMessages = JSON.parse(flashedMessagesEl.textContent || "[]");
+
+        flashedMessages.forEach(msg => {
+            showToast(msg);
+        });
+    </script>
+
+</body>
+</html>

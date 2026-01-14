@@ -1,14 +1,12 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meus Chamados - Help Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Meus Chamados - Help Desk{% endblock %}
+
+{% block content %}
 
 <h1>Meus Chamados</h1>
+
+<hr>
 
 <p><strong>Perfil:</strong> Usuário</p>
 
@@ -27,10 +25,12 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
+
                 <p>{{ t[2] }}</p>
+
                 <small>
                     <strong>Status:</strong> {{ t[3] }}<br>
                     <strong>Criado em:</strong> {{ t[4] }}
@@ -71,10 +71,12 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
+
                 <p>{{ t[2] }}</p>
+
                 <small>
                     <strong>Status:</strong> {{ t[3] }}<br>
                     <strong>Atendente:</strong> {{ t[9] or "—" }}<br>
@@ -116,10 +118,12 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
+
                 <p>{{ t[2] }}</p>
+
                 <small>
                     <strong>Status:</strong> {{ t[3] }}<br>
                     <strong>Fechado em:</strong> {{ t[6] or "—" }}
@@ -153,5 +157,4 @@
 
 </div>
 
-</body>
-</html>
+{% endblock %}

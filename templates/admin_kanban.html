@@ -1,14 +1,17 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Admin - Help Desk</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Painel Admin - Help Desk{% endblock %}
+
+{% block content %}
 
 <h1>Painel do Administrador</h1>
+
+<form method="GET" action="{{ url_for('buscar_ticket') }}">
+    <input type="text" name="ticket_id" placeholder="Buscar chamado pelo número (ex: 12)" required>
+    <button type="submit">Buscar</button>
+</form>
+
+<hr>
 
 <p><strong>Perfil:</strong> Administrador</p>
 
@@ -26,7 +29,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -81,7 +84,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -137,7 +140,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -152,6 +155,7 @@
 
                 <br><br>
 
+                <!-- Ocultar só se estiver fechado -->
                 {% if t[3] == 'Fechado' %}
                     <a href="{{ url_for('hide_ticket', ticket_id=t[0]) }}"
                        onclick="return confirm('Deseja ocultar este chamado?');">
@@ -196,7 +200,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        #{{ t[0] }} - {{ t[1] }}
+                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -251,5 +255,4 @@
 
 </div>
 
-</body>
-</html>
+{% endblock %}
