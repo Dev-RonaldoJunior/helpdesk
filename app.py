@@ -15,7 +15,7 @@ app.secret_key = 'chave-secreta-simples'
 # ============================================================
 def get_db_connection():
     conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row  # melhora leitura (pode acessar por nome se quiser)
+    conn.row_factory = sqlite3.Row  # melhora leitura (pode acessar por nome)
     return conn
 
 
@@ -228,7 +228,7 @@ def close_ticket(ticket_id):
 
 
 # ============================================================
-# OCULTAR CHAMADO (SOFT DELETE)
+# OCULTAR CHAMADO (SOFT DELETE) - só se estiver FECHADO
 # ============================================================
 @app.route('/hide-ticket/<int:ticket_id>')
 def hide_ticket(ticket_id):
@@ -291,7 +291,101 @@ def unhide_ticket(ticket_id):
 
 
 # ============================================================
-# DETALHE DO CHAMADO (PERMISSÕES + POPUPS)
+# PERMISSÃO PARA COMENTAR
+# ============================================================
+def pode_comentar(ticket_id):
+    """
+    Regra de permissão para comentar:
+    - Admin (2): pode comentar em qualquer chamado (inclusive ocultado)
+    - Usuário (0): pode comentar apenas no próprio chamado
+    - Atendente (1): pode comentar apenas nos chamados que ele atende
+    """
+
+    nivel = session.get("nivel")
+    user_id = session.get("user_id")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            id,
+            user_id,
+            attendant_id,
+            is_hidden
+        FROM tickets
+        WHERE id = ?
+    """, (ticket_id,))
+
+    t = cursor.fetchone()
+    conn.close()
+
+    if not t:
+        return False
+
+    ticket_user_id = t["user_id"]
+    attendant_id = t["attendant_id"]
+    is_hidden = t["is_hidden"]
+
+    # Admin pode tudo
+    if nivel == 2:
+        return True
+
+    # Se estiver ocultado, ninguém além do admin comenta
+    if is_hidden == 1:
+        return False
+
+    # Usuário comenta só no próprio
+    if nivel == 0:
+        return ticket_user_id == user_id
+
+    # Atendente comenta se ele é o responsável
+    if nivel == 1:
+        return attendant_id == user_id
+
+    return False
+
+
+# ============================================================
+# ADICIONAR COMENTÁRIO
+# ============================================================
+@app.route("/ticket/<int:ticket_id>/comment", methods=["POST"])
+def add_comment(ticket_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    comment = request.form.get("comment", "").strip()
+
+    if not comment:
+        flash("Digite uma mensagem antes de enviar.", "warning")
+        return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+    if not pode_comentar(ticket_id):
+        flash(f"Chamado Nº: {ticket_id} não permite comentário.", "error")
+        return redirect(url_for("dashboard"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO ticket_comments (ticket_id, user_id, comment, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (
+        ticket_id,
+        session["user_id"],
+        comment,
+        datetime.now().strftime("%d/%m/%Y %H:%M")
+    ))
+
+    conn.commit()
+    conn.close()
+
+    flash(f"Comentário enviado no Chamado Nº: {ticket_id}.", "success")
+    return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+
+# ============================================================
+# DETALHE DO CHAMADO (PERMISSÕES + HISTÓRICO)
 # ============================================================
 @app.route('/ticket/<int:ticket_id>')
 def ticket_detail(ticket_id):
@@ -321,9 +415,9 @@ def ticket_detail(ticket_id):
         flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    status = info['status']
-    is_hidden = info['is_hidden']
-    atendente = info['attendant_name'] or "—"
+    status = info["status"]
+    is_hidden = info["is_hidden"]
+    atendente = info["attendant_name"] or "—"
 
     # Se estiver ocultado:
     # - Admin pode ver
@@ -411,9 +505,9 @@ def ticket_detail(ticket_id):
         """, (ticket_id, session['user_id']))
         ticket = cursor.fetchone()
 
-    conn.close()
-
+    # Se não achou o ticket por permissão
     if not ticket:
+        conn.close()
         if status == "Em andamento":
             flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.", "warning")
         elif status == "Fechado":
@@ -422,7 +516,25 @@ def ticket_detail(ticket_id):
             flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    return render_template('ticket_detail.html', ticket=ticket)
+    # ============================
+    # BUSCA COMENTÁRIOS DO CHAMADO
+    # ============================
+    cursor.execute("""
+        SELECT
+            ticket_comments.id,
+            ticket_comments.comment,
+            ticket_comments.created_at,
+            users.username
+        FROM ticket_comments
+        JOIN users ON ticket_comments.user_id = users.id
+        WHERE ticket_comments.ticket_id = ?
+        ORDER BY ticket_comments.id ASC
+    """, (ticket_id,))
+    comments = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('ticket_detail.html', ticket=ticket, comments=comments)
 
 
 # ============================================================
@@ -456,6 +568,7 @@ def buscar_ticket():
         WHERE tickets.id = ?
     """, (ticket_id,))
     ticket = cursor.fetchone()
+
     conn.close()
 
     if not ticket:
@@ -465,7 +578,7 @@ def buscar_ticket():
     # Se ocultado:
     # - admin pode abrir
     # - outros não
-    if ticket['is_hidden'] == 1 and session.get('nivel') != 2:
+    if ticket["is_hidden"] == 1 and session.get('nivel') != 2:
         flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
@@ -482,7 +595,7 @@ def paginar_por_status(query_base, params_base, page):
     cursor = conn.cursor()
 
     cursor.execute(f"SELECT COUNT(*) AS total FROM ({query_base})", params_base)
-    total = cursor.fetchone()['total']
+    total = cursor.fetchone()["total"]
 
     cursor.execute(query_base + " ORDER BY tickets.id DESC LIMIT ? OFFSET ?",
                    params_base + (PER_PAGE, offset))

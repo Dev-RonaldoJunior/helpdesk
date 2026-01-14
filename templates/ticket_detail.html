@@ -1,14 +1,10 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chamado #{{ ticket[0] }} - Detalhes</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-<h1>Chamado #{{ ticket[0] }}</h1>
+{% block title %}Detalhes do Chamado{% endblock %}
+
+{% block content %}
+
+<h1>Detalhes do Chamado</h1>
 
 <h2>#{{ ticket[0] }} - {{ ticket[1] }}</h2>
 
@@ -51,9 +47,34 @@
 
 <hr>
 
-<p>
+<h3>Histórico de Atendimento</h3>
+
+{% if comments %}
+    {% for c in comments %}
+        <div class="card">
+            <small>
+                <strong>{{ c[3] }}</strong> • {{ c[2] }}
+            </small>
+            <p style="margin-top:6px;">{{ c[1] }}</p>
+        </div>
+    {% endfor %}
+{% else %}
+    <p class="vazio">Nenhuma mensagem ainda.</p>
+{% endif %}
+
+<hr>
+
+<h3>Enviar mensagem</h3>
+
+<form method="POST" action="{{ url_for('add_comment', ticket_id=ticket[0]) }}">
+    <textarea name="comment" rows="4" required placeholder="Digite sua mensagem..."></textarea>
+    <button type="submit">Enviar</button>
+</form>
+
+<hr>
+
+<p style="text-align:center;">
     <a href="{{ url_for('dashboard') }}">Voltar ao Dashboard</a>
 </p>
 
-</body>
-</html>
+{% endblock %}
