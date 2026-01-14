@@ -1,80 +1,90 @@
-{% extends "base.html" %}
-
-{% block title %}Detalhes do Chamado{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes do Chamado</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 
 <h1>Detalhes do Chamado</h1>
 
-<h2>#{{ ticket[0] }} - {{ ticket[1] }}</h2>
+<h2>#{{ ticket['id'] }} - {{ ticket['titulo'] }}</h2>
 
 <hr>
 
-<p>{{ ticket[2] }}</p>
+<p>{{ ticket['descricao'] }}</p>
 
 <hr>
 
 <small>
     <p><strong>Status:</strong>
-        {% if ticket[7] == 1 %}
+        {% if ticket['is_hidden'] == 1 %}
             Ocultado
         {% else %}
-            {{ ticket[3] }}
+            {{ ticket['status'] }}
         {% endif %}
     </p>
 
-    <p><strong>Criado por:</strong> {{ ticket[8] }}</p>
-    <p><strong>Criado em:</strong> {{ ticket[4] }}</p>
+    <p><strong>Criado por:</strong> {{ ticket['creator_name'] }}</p>
+    <p><strong>Criado em:</strong> {{ ticket['created_at'] }}</p>
 
-    {% if ticket[9] %}
-        <p><strong>Atendente:</strong> {{ ticket[9] }}</p>
+    {% if ticket['attendant_name'] %}
+        <p><strong>Atendente:</strong> {{ ticket['attendant_name'] }}</p>
     {% endif %}
 
-    {% if ticket[5] %}
-        <p><strong>Atendimento iniciado em:</strong> {{ ticket[5] }}</p>
+    {% if ticket['started_at'] %}
+        <p><strong>Atendimento iniciado em:</strong> {{ ticket['started_at'] }}</p>
     {% endif %}
 
-    {% if ticket[6] %}
-        <p><strong>Fechado em:</strong> {{ ticket[6] }}</p>
+    {% if ticket['closed_at'] %}
+        <p><strong>Fechado em:</strong> {{ ticket['closed_at'] }}</p>
     {% endif %}
 
-    {% if session.get('nivel') == 2 and ticket[7] == 1 %}
+    {% if session.get('nivel') == 2 and ticket['is_hidden'] == 1 %}
         <hr>
-        <p><strong>Ocultado por:</strong> {{ ticket[10] }}</p>
-        <p><strong>Ocultado em:</strong> {{ ticket[11] }}</p>
+        <p><strong>Ocultado por:</strong> {{ ticket['hider_name'] }}</p>
+        <p><strong>Ocultado em:</strong> {{ ticket['hidden_at'] }}</p>
     {% endif %}
 </small>
 
 <hr>
 
-<h3>Histórico de Atendimento</h3>
+<h3>Histórico / Comentários</h3>
 
 {% if comments %}
-    {% for c in comments %}
-        <div class="card">
-            <small>
-                <strong>{{ c[3] }}</strong> • {{ c[2] }}
-            </small>
-            <p style="margin-top:6px;">{{ c[1] }}</p>
-        </div>
-    {% endfor %}
+    <div class="comments-box">
+        {% for c in comments %}
+            <div class="comment-item">
+                <div class="comment-header">
+                    <strong>{{ c['author'] }}</strong>
+                    <span>{{ c['created_at'] }}</span>
+                </div>
+                <div class="comment-body">
+                    {{ c['comment'] }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 {% else %}
-    <p class="vazio">Nenhuma mensagem ainda.</p>
+    <p class="vazio">Nenhum comentário ainda.</p>
 {% endif %}
 
 <hr>
 
 <h3>Enviar mensagem</h3>
 
-<form method="POST" action="{{ url_for('add_comment', ticket_id=ticket[0]) }}">
-    <textarea name="comment" rows="4" required placeholder="Digite sua mensagem..."></textarea>
+<form method="POST" action="{{ url_for('add_comment', ticket_id=ticket['id']) }}">
+    <textarea name="comment" rows="4" placeholder="Digite sua mensagem..." required></textarea>
     <button type="submit">Enviar</button>
 </form>
 
 <hr>
 
-<p style="text-align:center;">
-    <a href="{{ url_for('dashboard') }}">Voltar ao Dashboard</a>
+<p>
+    <a href="{{ url_for('dashboard') }}">Voltar</a>
 </p>
 
-{% endblock %}
+</body>
+</html>

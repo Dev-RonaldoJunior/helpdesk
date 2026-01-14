@@ -76,6 +76,23 @@ input:focus {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
+textarea {
+    width: 100%;
+    padding: 10px;
+    resize: vertical;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    outline: none;
+    font-size: 14px;
+    min-height: 90px;
+    margin-bottom: 12px;
+}
+
+textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
 button {
     width: 100%;
     padding: 12px;
@@ -130,6 +147,7 @@ button:hover {
     margin-bottom: 12px;
     border: 1px solid #e5e7eb;
     transition: 0.15s;
+    position: relative; /* necessário pro badge ficar no canto */
 }
 
 .card:hover {
@@ -164,12 +182,15 @@ button:hover {
     margin-top: 15px;
 }
 
-/* Paginação */
-.coluna > div[style*="text-align:center"] {
-    margin-top: 14px !important;
+/* ==========================
+   PAGINAÇÃO (PADRÃO)
+   ========================== */
+.paginacao {
+    text-align: center;
+    margin-top: 14px;
 }
 
-.coluna a {
+.paginacao a {
     display: inline-block;
     padding: 6px 10px;
     border-radius: 10px;
@@ -177,8 +198,127 @@ button:hover {
     margin: 2px;
 }
 
-.coluna a:hover {
+.paginacao a:hover {
     background: #dbeafe;
+}
+
+/* Compatibilidade com seu HTML antigo (inline style) */
+.coluna > div[style*="text-align:center"] {
+    margin-top: 14px !important;
+}
+
+/* ==========================
+   BADGES (NOTIFICAÇÕES)
+   🔴 mensagem nova (com contador)
+   🟡 status atualizado
+   ========================== */
+
+/* Container no canto do card */
+.badge-corner {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    z-index: 5;
+}
+
+/* Badge base */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.15);
+    position: relative;
+    user-select: none;
+}
+
+/* 🔴 Mensagem nova */
+.badge-red {
+    background: #dc2626;
+}
+
+/* 🟡 Status atualizado */
+.badge-yellow {
+    background: #f59e0b;
+    color: #111827;
+}
+
+/* Pulse suave */
+.badge-red::after,
+.badge-yellow::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 999px;
+    opacity: 0.22;
+    animation: pulseBadge 1.6s ease-in-out infinite;
+    border: 2px solid rgba(0, 0, 0, 0.08);
+}
+
+@keyframes pulseBadge {
+    0% {
+        transform: scale(0.85);
+        opacity: 0.12;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.28;
+    }
+    100% {
+        transform: scale(0.85);
+        opacity: 0.12;
+    }
+}
+
+/* ==========================
+   CHAT / HISTÓRICO DO CHAMADO
+   ========================== */
+.chat-box {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.chat-message {
+    background: #f9fafb;
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.chat-author {
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #111827;
+    font-size: 13px;
+}
+
+.chat-text {
+    margin-bottom: 6px;
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.chat-date {
+    font-size: 12px;
+    color: #6b7280;
 }
 
 /* ==========================
@@ -266,12 +406,8 @@ button:hover {
     form {
         max-width: 100%;
     }
-}
 
-textarea {
-    width: 100%;
-    padding: 8px;
-    resize: vertical;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    .chat-box {
+        max-width: 100%;
+    }
 }

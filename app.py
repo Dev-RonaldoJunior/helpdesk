@@ -15,8 +15,12 @@ app.secret_key = 'chave-secreta-simples'
 # ============================================================
 def get_db_connection():
     conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row  # melhora leitura (pode acessar por nome)
+    conn.row_factory = sqlite3.Row
     return conn
+
+
+def now_str():
+    return datetime.now().strftime('%d/%m/%Y %H:%M')
 
 
 # ============================================================
@@ -29,6 +33,129 @@ def validar_username(username):
     username = username.strip().lower()
     padrao = r"^[a-z0-9]+\.[a-z0-9]+$"
     return re.match(padrao, username) is not None
+
+
+# ============================================================
+# FUNÇÃO: MARCAR COMO VISTO (SÓ PRA QUEM ABRIU)
+# ============================================================
+def marcar_ticket_como_visto(ticket_id):
+    """
+    Marca o ticket como visto dependendo do perfil logado:
+    - user_seen_comment_id
+    - attendant_seen_comment_id
+    - admin_seen_comment_id
+
+    Isso NÃO apaga notificação pros outros.
+    """
+    if "user_id" not in session:
+        return
+
+    nivel = session.get("nivel")
+    user_id = session.get("user_id")
+
+    if nivel not in [0, 1, 2]:
+        return
+
+    # Qual coluna vamos atualizar
+    if nivel == 0:
+        coluna = "user_seen_comment_id"
+    elif nivel == 1:
+        coluna = "attendant_seen_comment_id"
+    else:
+        coluna = "admin_seen_comment_id"
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # pega o último comentário do ticket
+    cursor.execute("""
+        SELECT MAX(id) AS last_id
+        FROM ticket_comments
+        WHERE ticket_id = ?
+    """, (ticket_id,))
+    last_comment = cursor.fetchone()
+
+    last_id = last_comment["last_id"] if last_comment and last_comment["last_id"] else None
+
+    # Se não existe comentário, não precisa marcar nada
+    if not last_id:
+        conn.close()
+        return
+
+    # Atualiza o seen_comment_id do perfil atual
+    cursor.execute(f"""
+        UPDATE tickets
+        SET {coluna} = ?
+        WHERE id = ?
+    """, (last_id, ticket_id))
+
+    conn.commit()
+    conn.close()
+
+
+# ============================================================
+# FUNÇÃO: CONTADOR DE NÃO LIDAS (SÓ DO OUTRO AUTOR)
+# ============================================================
+def get_unread_count(ticket_id):
+    """
+    Retorna quantas mensagens novas existem para o usuário logado
+    considerando:
+    - só conta mensagens feitas por OUTRA pessoa (user_id != logado)
+    - usa seen_comment_id específico por perfil
+    """
+    if "user_id" not in session:
+        return 0
+
+    nivel = session.get("nivel")
+    user_id = session.get("user_id")
+
+    if nivel not in [0, 1, 2]:
+        return 0
+
+    if nivel == 0:
+        coluna_seen = "user_seen_comment_id"
+    elif nivel == 1:
+        coluna_seen = "attendant_seen_comment_id"
+    else:
+        coluna_seen = "admin_seen_comment_id"
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # pega o seen_comment_id atual
+    cursor.execute(f"""
+        SELECT {coluna_seen} AS seen_id
+        FROM tickets
+        WHERE id = ?
+    """, (ticket_id,))
+    row = cursor.fetchone()
+
+    seen_id = row["seen_id"] if row and row["seen_id"] else 0
+
+    # conta comentários novos (id > seen_id) feitos por OUTRO autor
+    cursor.execute("""
+        SELECT COUNT(*) AS total
+        FROM ticket_comments
+        WHERE ticket_id = ?
+          AND id > ?
+          AND user_id != ?
+    """, (ticket_id, seen_id, user_id))
+
+    total = cursor.fetchone()["total"]
+    conn.close()
+
+    return total
+
+
+def montar_unread_counts(tickets):
+    """
+    Recebe lista de tickets e devolve dict:
+    { ticket_id: unread_count }
+    """
+    unread = {}
+    for t in tickets:
+        unread[t["id"]] = get_unread_count(t["id"])
+    return unread
 
 
 # ============================================================
@@ -146,6 +273,8 @@ def create_ticket():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        agora = now_str()
+
         cursor.execute("""
             INSERT INTO tickets
             (titulo, descricao, status, user_id, created_at, is_hidden)
@@ -155,7 +284,7 @@ def create_ticket():
             descricao,
             'Aberto',
             session['user_id'],
-            datetime.now().strftime('%d/%m/%Y %H:%M'),
+            agora,
             0
         ))
 
@@ -180,14 +309,20 @@ def start_ticket(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    agora = now_str()
+
     cursor.execute("""
         UPDATE tickets
-        SET status = ?, attendant_id = ?, started_at = ?
-        WHERE id = ? AND status = 'Aberto' AND is_hidden = 0
+        SET status = ?,
+            attendant_id = ?,
+            started_at = ?
+        WHERE id = ?
+          AND status = 'Aberto'
+          AND is_hidden = 0
     """, (
         'Em andamento',
         session['user_id'],
-        datetime.now().strftime('%d/%m/%Y %H:%M'),
+        agora,
         ticket_id
     ))
 
@@ -210,13 +345,18 @@ def close_ticket(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    agora = now_str()
+
     cursor.execute("""
         UPDATE tickets
-        SET status = ?, closed_at = ?
-        WHERE id = ? AND status = 'Em andamento' AND is_hidden = 0
+        SET status = ?,
+            closed_at = ?
+        WHERE id = ?
+          AND status = 'Em andamento'
+          AND is_hidden = 0
     """, (
         'Fechado',
-        datetime.now().strftime('%d/%m/%Y %H:%M'),
+        agora,
         ticket_id
     ))
 
@@ -228,7 +368,7 @@ def close_ticket(ticket_id):
 
 
 # ============================================================
-# OCULTAR CHAMADO (SOFT DELETE) - só se estiver FECHADO
+# OCULTAR CHAMADO (SOFT DELETE)
 # ============================================================
 @app.route('/hide-ticket/<int:ticket_id>')
 def hide_ticket(ticket_id):
@@ -238,6 +378,8 @@ def hide_ticket(ticket_id):
 
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    agora = now_str()
 
     cursor.execute("""
         UPDATE tickets
@@ -249,7 +391,7 @@ def hide_ticket(ticket_id):
           AND is_hidden = 0
     """, (
         session['user_id'],
-        datetime.now().strftime('%d/%m/%Y %H:%M'),
+        agora,
         ticket_id
     ))
 
@@ -291,16 +433,166 @@ def unhide_ticket(ticket_id):
 
 
 # ============================================================
-# PERMISSÃO PARA COMENTAR
+# DETALHE DO CHAMADO + MARCAR COMO VISTO
+# ============================================================
+@app.route('/ticket/<int:ticket_id>')
+def ticket_detail(ticket_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    nivel = session.get('nivel')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Info do ticket (pra mensagem)
+    cursor.execute("""
+        SELECT
+            tickets.id,
+            tickets.status,
+            tickets.is_hidden,
+            tickets.user_id,
+            tickets.attendant_id,
+            attendant.username AS attendant_name
+        FROM tickets
+        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+        WHERE tickets.id = ?
+    """, (ticket_id,))
+    info = cursor.fetchone()
+
+    if not info:
+        conn.close()
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
+        return redirect(url_for('dashboard'))
+
+    status = info["status"]
+    is_hidden = info["is_hidden"]
+    atendente = info["attendant_name"] or "—"
+
+    # Se ocultado:
+    if is_hidden == 1 and nivel != 2:
+        conn.close()
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
+        return redirect(url_for('dashboard'))
+
+    # Busca ticket completo com base no nível
+    ticket = None
+
+    if nivel == 2:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username AS creator_name,
+                attendant.username AS attendant_name,
+                hider.username AS hider_name,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.id = ?
+        """, (ticket_id,))
+        ticket = cursor.fetchone()
+
+    elif nivel == 0:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username AS creator_name,
+                attendant.username AS attendant_name,
+                hider.username AS hider_name,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.id = ?
+              AND tickets.user_id = ?
+              AND tickets.is_hidden = 0
+        """, (ticket_id, session['user_id']))
+        ticket = cursor.fetchone()
+
+    else:
+        cursor.execute("""
+            SELECT
+                tickets.id,
+                tickets.titulo,
+                tickets.descricao,
+                tickets.status,
+                tickets.created_at,
+                tickets.started_at,
+                tickets.closed_at,
+                tickets.is_hidden,
+                creator.username AS creator_name,
+                attendant.username AS attendant_name,
+                hider.username AS hider_name,
+                tickets.hidden_at
+            FROM tickets
+            JOIN users AS creator ON tickets.user_id = creator.id
+            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
+            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
+            WHERE tickets.id = ?
+              AND tickets.is_hidden = 0
+              AND (
+                    tickets.status = 'Aberto'
+                    OR tickets.attendant_id = ?
+                  )
+        """, (ticket_id, session['user_id']))
+        ticket = cursor.fetchone()
+
+    # Se não tem permissão
+    if not ticket:
+        conn.close()
+
+        if status == "Em andamento":
+            flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.", "warning")
+        elif status == "Fechado":
+            flash(f"Chamado Nº: {ticket_id} foi encerrado por {atendente}.", "info")
+        else:
+            flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
+
+        return redirect(url_for('dashboard'))
+
+    # Comentários
+    cursor.execute("""
+        SELECT
+            tc.id,
+            tc.comment,
+            tc.created_at,
+            u.username AS author
+        FROM ticket_comments tc
+        JOIN users u ON tc.user_id = u.id
+        WHERE tc.ticket_id = ?
+        ORDER BY tc.id ASC
+    """, (ticket_id,))
+    comments = cursor.fetchall()
+
+    conn.close()
+
+    # Marca como visto só pra quem abriu
+    marcar_ticket_como_visto(ticket_id)
+
+    return render_template('ticket_detail.html', ticket=ticket, comments=comments)
+
+
+# ============================================================
+# PERMISSÃO DE COMENTAR
 # ============================================================
 def pode_comentar(ticket_id):
-    """
-    Regra de permissão para comentar:
-    - Admin (2): pode comentar em qualquer chamado (inclusive ocultado)
-    - Usuário (0): pode comentar apenas no próprio chamado
-    - Atendente (1): pode comentar apenas nos chamados que ele atende
-    """
-
     nivel = session.get("nivel")
     user_id = session.get("user_id")
 
@@ -316,32 +608,27 @@ def pode_comentar(ticket_id):
         FROM tickets
         WHERE id = ?
     """, (ticket_id,))
-
     t = cursor.fetchone()
     conn.close()
 
     if not t:
         return False
 
-    ticket_user_id = t["user_id"]
-    attendant_id = t["attendant_id"]
-    is_hidden = t["is_hidden"]
-
-    # Admin pode tudo
+    # Admin pode comentar em qualquer
     if nivel == 2:
         return True
 
-    # Se estiver ocultado, ninguém além do admin comenta
-    if is_hidden == 1:
+    # Ocultado: só admin
+    if t["is_hidden"] == 1:
         return False
 
-    # Usuário comenta só no próprio
+    # Usuário comenta no próprio ticket
     if nivel == 0:
-        return ticket_user_id == user_id
+        return t["user_id"] == user_id
 
-    # Atendente comenta se ele é o responsável
+    # Atendente comenta se for o responsável
     if nivel == 1:
-        return attendant_id == user_id
+        return t["attendant_id"] == user_id
 
     return False
 
@@ -367,6 +654,8 @@ def add_comment(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    agora = now_str()
+
     cursor.execute("""
         INSERT INTO ticket_comments (ticket_id, user_id, comment, created_at)
         VALUES (?, ?, ?, ?)
@@ -374,7 +663,7 @@ def add_comment(ticket_id):
         ticket_id,
         session["user_id"],
         comment,
-        datetime.now().strftime("%d/%m/%Y %H:%M")
+        agora
     ))
 
     conn.commit()
@@ -382,159 +671,6 @@ def add_comment(ticket_id):
 
     flash(f"Comentário enviado no Chamado Nº: {ticket_id}.", "success")
     return redirect(url_for("ticket_detail", ticket_id=ticket_id))
-
-
-# ============================================================
-# DETALHE DO CHAMADO (PERMISSÕES + HISTÓRICO)
-# ============================================================
-@app.route('/ticket/<int:ticket_id>')
-def ticket_detail(ticket_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    nivel = session.get('nivel')
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Info do ticket (pra mensagem)
-    cursor.execute("""
-        SELECT
-            tickets.id,
-            tickets.status,
-            tickets.is_hidden,
-            attendant.username AS attendant_name
-        FROM tickets
-        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-        WHERE tickets.id = ?
-    """, (ticket_id,))
-    info = cursor.fetchone()
-
-    if not info:
-        conn.close()
-        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
-        return redirect(url_for('dashboard'))
-
-    status = info["status"]
-    is_hidden = info["is_hidden"]
-    atendente = info["attendant_name"] or "—"
-
-    # Se estiver ocultado:
-    # - Admin pode ver
-    # - Atendente/Usuário não
-    if is_hidden == 1 and nivel != 2:
-        conn.close()
-        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
-        return redirect(url_for('dashboard'))
-
-    # Busca ticket completo com base no nível
-    if nivel == 2:
-        cursor.execute("""
-            SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                tickets.is_hidden,
-                creator.username,
-                attendant.username,
-                hider.username,
-                tickets.hidden_at
-            FROM tickets
-            JOIN users AS creator ON tickets.user_id = creator.id
-            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-            WHERE tickets.id = ?
-        """, (ticket_id,))
-        ticket = cursor.fetchone()
-
-    elif nivel == 0:
-        cursor.execute("""
-            SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                tickets.is_hidden,
-                creator.username,
-                attendant.username,
-                hider.username,
-                tickets.hidden_at
-            FROM tickets
-            JOIN users AS creator ON tickets.user_id = creator.id
-            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-            WHERE tickets.id = ?
-              AND tickets.user_id = ?
-              AND tickets.is_hidden = 0
-        """, (ticket_id, session['user_id']))
-        ticket = cursor.fetchone()
-
-    else:
-        # Atendente: pode ver aberto (fila) OU os que ele atende
-        cursor.execute("""
-            SELECT
-                tickets.id,
-                tickets.titulo,
-                tickets.descricao,
-                tickets.status,
-                tickets.created_at,
-                tickets.started_at,
-                tickets.closed_at,
-                tickets.is_hidden,
-                creator.username,
-                attendant.username,
-                hider.username,
-                tickets.hidden_at
-            FROM tickets
-            JOIN users AS creator ON tickets.user_id = creator.id
-            LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-            LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-            WHERE tickets.id = ?
-              AND tickets.is_hidden = 0
-              AND (
-                    tickets.status = 'Aberto'
-                    OR tickets.attendant_id = ?
-                  )
-        """, (ticket_id, session['user_id']))
-        ticket = cursor.fetchone()
-
-    # Se não achou o ticket por permissão
-    if not ticket:
-        conn.close()
-        if status == "Em andamento":
-            flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.", "warning")
-        elif status == "Fechado":
-            flash(f"Chamado Nº: {ticket_id} foi encerrado por {atendente}.", "info")
-        else:
-            flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
-        return redirect(url_for('dashboard'))
-
-    # ============================
-    # BUSCA COMENTÁRIOS DO CHAMADO
-    # ============================
-    cursor.execute("""
-        SELECT
-            ticket_comments.id,
-            ticket_comments.comment,
-            ticket_comments.created_at,
-            users.username
-        FROM ticket_comments
-        JOIN users ON ticket_comments.user_id = users.id
-        WHERE ticket_comments.ticket_id = ?
-        ORDER BY ticket_comments.id ASC
-    """, (ticket_id,))
-    comments = cursor.fetchall()
-
-    conn.close()
-
-    return render_template('ticket_detail.html', ticket=ticket, comments=comments)
 
 
 # ============================================================
@@ -561,24 +697,18 @@ def buscar_ticket():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT
-            tickets.id,
-            tickets.is_hidden
+        SELECT id, is_hidden
         FROM tickets
-        WHERE tickets.id = ?
+        WHERE id = ?
     """, (ticket_id,))
     ticket = cursor.fetchone()
-
     conn.close()
 
     if not ticket:
         flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    # Se ocultado:
-    # - admin pode abrir
-    # - outros não
-    if ticket["is_hidden"] == 1 and session.get('nivel') != 2:
+    if ticket["is_hidden"] == 1 and session.get("nivel") != 2:
         flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
@@ -586,7 +716,7 @@ def buscar_ticket():
 
 
 # ============================================================
-# PAGINAÇÃO POR STATUS (USADA NAS 3 TELAS)
+# PAGINAÇÃO POR STATUS
 # ============================================================
 def paginar_por_status(query_base, params_base, page):
     offset = (page - 1) * PER_PAGE
@@ -595,7 +725,7 @@ def paginar_por_status(query_base, params_base, page):
     cursor = conn.cursor()
 
     cursor.execute(f"SELECT COUNT(*) AS total FROM ({query_base})", params_base)
-    total = cursor.fetchone()["total"]
+    total = cursor.fetchone()['total']
 
     cursor.execute(query_base + " ORDER BY tickets.id DESC LIMIT ? OFFSET ?",
                    params_base + (PER_PAGE, offset))
@@ -635,7 +765,7 @@ def meus_chamados():
             tickets.closed_at,
             tickets.is_hidden,
             creator.username,
-            attendant.username
+            attendant.username AS attendant_name
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
@@ -661,11 +791,18 @@ def meus_chamados():
         fechados_page
     )
 
+    # Monta unread_counts
+    unread_counts = {}
+    unread_counts.update(montar_unread_counts(abertos))
+    unread_counts.update(montar_unread_counts(andamento))
+    unread_counts.update(montar_unread_counts(fechados))
+
     return render_template(
         'meus_chamados_kanban.html',
         abertos=abertos,
         andamento=andamento,
         fechados=fechados,
+        unread_counts=unread_counts,
 
         abertos_page=abertos_page,
         abertos_has_prev=abertos_has_prev,
@@ -707,13 +844,10 @@ def fila():
             tickets.closed_at,
             tickets.is_hidden,
             creator.username,
-            attendant.username,
-            hider.username,
-            tickets.hidden_at
+            attendant.username AS attendant_name
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
         WHERE tickets.is_hidden = 0
     """
 
@@ -735,11 +869,17 @@ def fila():
         fechados_page
     )
 
+    unread_counts = {}
+    unread_counts.update(montar_unread_counts(abertos))
+    unread_counts.update(montar_unread_counts(andamento))
+    unread_counts.update(montar_unread_counts(fechados))
+
     return render_template(
         'fila_kanban.html',
         abertos=abertos,
         andamento=andamento,
         fechados=fechados,
+        unread_counts=unread_counts,
 
         abertos_page=abertos_page,
         abertos_has_prev=abertos_has_prev,
@@ -782,8 +922,8 @@ def admin():
             tickets.closed_at,
             tickets.is_hidden,
             creator.username,
-            attendant.username,
-            hider.username,
+            attendant.username AS attendant_name,
+            hider.username AS hider_name,
             tickets.hidden_at
         FROM tickets
         JOIN users AS creator ON tickets.user_id = creator.id
@@ -816,12 +956,19 @@ def admin():
         ocultados_page
     )
 
+    unread_counts = {}
+    unread_counts.update(montar_unread_counts(abertos))
+    unread_counts.update(montar_unread_counts(andamento))
+    unread_counts.update(montar_unread_counts(fechados))
+    unread_counts.update(montar_unread_counts(ocultados))
+
     return render_template(
         'admin_kanban.html',
         abertos=abertos,
         andamento=andamento,
         fechados=fechados,
         ocultados=ocultados,
+        unread_counts=unread_counts,
 
         abertos_page=abertos_page,
         abertos_has_prev=abertos_has_prev,
