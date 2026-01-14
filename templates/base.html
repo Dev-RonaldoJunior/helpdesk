@@ -14,14 +14,15 @@
 
     {% block content %}{% endblock %}
 
-    <!-- JSON seguro (o editor não reclama) -->
+    <!-- FLASH MESSAGES EM JSON (FORMA MAIS PROFISSIONAL E SEGURA) -->
     <script id="flashed-messages" type="application/json">
-        {{ get_flashed_messages() | tojson }}
+        {{ get_flashed_messages(with_categories=true) | tojson }}
     </script>
 
     <script>
-        function showToast(message, type="info") {
+        function showToast(message, type = "info") {
             const container = document.getElementById("toast-container");
+            if (!container) return;
 
             const toast = document.createElement("div");
             toast.className = `toast toast-${type}`;
@@ -33,22 +34,29 @@
 
             container.appendChild(toast);
 
+            // Botão fechar
             toast.querySelector(".toast-close").addEventListener("click", () => {
                 toast.remove();
             });
 
+            // Some sozinho em 3.2s
             setTimeout(() => {
                 toast.remove();
-            }, 3000);
+            }, 3200);
         }
 
-        // Lê o JSON do script application/json
-        const flashedMessagesEl = document.getElementById("flashed-messages");
-        const flashedMessages = JSON.parse(flashedMessagesEl.textContent || "[]");
+        // Lê os flashes do Flask em JSON
+        try {
+            const raw = document.getElementById("flashed-messages").textContent;
+            const flashedMessages = JSON.parse(raw || "[]");
 
-        flashedMessages.forEach(msg => {
-            showToast(msg);
-        });
+            flashedMessages.forEach(([category, msg]) => {
+                showToast(msg, category || "info");
+            });
+
+        } catch (err) {
+            console.error("Erro ao carregar mensagens flash:", err);
+        }
     </script>
 
 </body>

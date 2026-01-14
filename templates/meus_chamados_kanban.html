@@ -6,14 +6,16 @@
 
 <h1>Meus Chamados</h1>
 
-<hr>
+<p style="text-align:center;">
+    <strong>Perfil:</strong> Usuário
+</p>
 
-<p><strong>Perfil:</strong> Usuário</p>
-
-<p>
+<p style="text-align:center; margin-top:10px;">
     <a href="{{ url_for('create_ticket') }}">Criar novo chamado</a> |
     <a href="{{ url_for('logout') }}">Logout</a>
 </p>
+
+<hr>
 
 <div class="kanban">
 
@@ -25,7 +27,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -71,7 +73,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 
@@ -118,7 +120,7 @@
             <div class="card">
                 <strong>
                     <a href="{{ url_for('ticket_detail', ticket_id=t[0]) }}">
-                        Chamado Nº: {{ t[0] }} - {{ t[1] }}
+                        #{{ t[0] }} - {{ t[1] }}
                     </a>
                 </strong>
 

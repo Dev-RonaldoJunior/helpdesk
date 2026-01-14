@@ -11,15 +11,16 @@ app.secret_key = 'chave-secreta-simples'
 
 
 # ============================================================
-# CONEXÃO COM BANCO
+# BANCO
 # ============================================================
 def get_db_connection():
     conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row  # melhora leitura (pode acessar por nome se quiser)
     return conn
 
 
 # ============================================================
-# VALIDAÇÃO DE USERNAME
+# VALIDAR USERNAME
 # ============================================================
 def validar_username(username):
     if not username:
@@ -47,14 +48,15 @@ def login():
         conn.close()
 
         if user:
-            senha_hash = user[3]
-
+            senha_hash = user['senha']
             if check_password_hash(senha_hash, senha):
-                session['user_id'] = user[0]
-                session['nivel'] = user[4]  # 0 user | 1 atendente | 2 admin
+                session['user_id'] = user['id']
+                session['nivel'] = user['is_admin']  # 0 user | 1 atendente | 2 admin
+                flash("Login realizado com sucesso!", "success")
                 return redirect(url_for('dashboard'))
 
-        return "Usuário ou senha inválidos!"
+        flash("Usuário ou senha inválidos!", "error")
+        return redirect(url_for('login'))
 
     return render_template('login.html')
 
@@ -65,6 +67,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
+    flash("Você saiu do sistema.", "info")
     return redirect(url_for('login'))
 
 
@@ -78,7 +81,8 @@ def register():
         senha = request.form['senha']
 
         if not validar_username(username):
-            return "Username inválido! Use o formato nome.sobrenome (ex: fulano.detal)"
+            flash("Username inválido! Use o formato nome.sobrenome (ex: joao.silva)", "error")
+            return redirect(url_for('register'))
 
         senha_hash = generate_password_hash(senha)
 
@@ -90,7 +94,8 @@ def register():
 
         if existe:
             conn.close()
-            return "Esse username já existe! Escolha outro."
+            flash("Esse username já existe! Escolha outro.", "warning")
+            return redirect(url_for('register'))
 
         cursor.execute(
             "INSERT INTO users (username, email, senha, is_admin) VALUES (?, ?, ?, ?)",
@@ -100,7 +105,8 @@ def register():
         conn.commit()
         conn.close()
 
-        return "Usuário cadastrado com sucesso! Agora faça login."
+        flash("Usuário cadastrado com sucesso! Agora faça login.", "success")
+        return redirect(url_for('login'))
 
     return render_template('register.html')
 
@@ -117,10 +123,8 @@ def dashboard():
 
     if nivel == 0:
         return redirect(url_for('meus_chamados'))
-
     if nivel == 1:
         return redirect(url_for('fila'))
-
     if nivel == 2:
         return redirect(url_for('admin'))
 
@@ -158,6 +162,7 @@ def create_ticket():
         conn.commit()
         conn.close()
 
+        flash("Chamado criado com sucesso!", "success")
         return redirect(url_for('dashboard'))
 
     return render_template('create_ticket.html')
@@ -169,6 +174,7 @@ def create_ticket():
 @app.route('/start-ticket/<int:ticket_id>')
 def start_ticket(ticket_id):
     if session.get('nivel') not in [1, 2]:
+        flash("Você não tem permissão para iniciar atendimento.", "error")
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
@@ -188,6 +194,7 @@ def start_ticket(ticket_id):
     conn.commit()
     conn.close()
 
+    flash(f"Chamado Nº: {ticket_id} iniciado com sucesso!", "success")
     return redirect(url_for('dashboard'))
 
 
@@ -197,6 +204,7 @@ def start_ticket(ticket_id):
 @app.route('/close-ticket/<int:ticket_id>')
 def close_ticket(ticket_id):
     if session.get('nivel') not in [1, 2]:
+        flash("Você não tem permissão para fechar chamado.", "error")
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
@@ -215,15 +223,17 @@ def close_ticket(ticket_id):
     conn.commit()
     conn.close()
 
+    flash(f"Chamado Nº: {ticket_id} fechado com sucesso!", "success")
     return redirect(url_for('dashboard'))
 
 
 # ============================================================
-# OCULTAR CHAMADO (SÓ FECHADO)
+# OCULTAR CHAMADO (SOFT DELETE)
 # ============================================================
 @app.route('/hide-ticket/<int:ticket_id>')
 def hide_ticket(ticket_id):
     if session.get('nivel') not in [1, 2]:
+        flash("Você não tem permissão para ocultar chamados.", "error")
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
@@ -246,11 +256,12 @@ def hide_ticket(ticket_id):
     conn.commit()
     conn.close()
 
+    flash(f"Chamado Nº: {ticket_id} foi ocultado.", "warning")
     return redirect(url_for('dashboard'))
 
 
 # ============================================================
-# DESOCULTAR CHAMADO (SÓ ADMIN)
+# DESOCULTAR (ADMIN)
 # ============================================================
 @app.route('/unhide-ticket/<int:ticket_id>')
 def unhide_ticket(ticket_id):
@@ -258,6 +269,7 @@ def unhide_ticket(ticket_id):
         return redirect(url_for('login'))
 
     if session.get('nivel') != 2:
+        flash("Apenas administradores podem desocultar.", "error")
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
@@ -274,11 +286,12 @@ def unhide_ticket(ticket_id):
     conn.commit()
     conn.close()
 
+    flash(f"Chamado Nº: {ticket_id} foi desocultado.", "success")
     return redirect(url_for('dashboard'))
 
 
 # ============================================================
-# DETALHES DO CHAMADO
+# DETALHE DO CHAMADO (PERMISSÕES + POPUPS)
 # ============================================================
 @app.route('/ticket/<int:ticket_id>')
 def ticket_detail(ticket_id):
@@ -290,13 +303,13 @@ def ticket_detail(ticket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Pegamos info básica antes (pra saber status, ocultado e atendente)
+    # Info do ticket (pra mensagem)
     cursor.execute("""
         SELECT
             tickets.id,
             tickets.status,
             tickets.is_hidden,
-            attendant.username
+            attendant.username AS attendant_name
         FROM tickets
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
         WHERE tickets.id = ?
@@ -305,20 +318,22 @@ def ticket_detail(ticket_id):
 
     if not info:
         conn.close()
-        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    status = info[1]
-    is_hidden = info[2]
-    atendente = info[3] or "—"
+    status = info['status']
+    is_hidden = info['is_hidden']
+    atendente = info['attendant_name'] or "—"
 
-    # Ocultado -> só admin pode ver
+    # Se estiver ocultado:
+    # - Admin pode ver
+    # - Atendente/Usuário não
     if is_hidden == 1 and nivel != 2:
         conn.close()
-        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    # ADMIN (vê tudo, inclusive ocultado)
+    # Busca ticket completo com base no nível
     if nivel == 2:
         cursor.execute("""
             SELECT
@@ -342,7 +357,6 @@ def ticket_detail(ticket_id):
         """, (ticket_id,))
         ticket = cursor.fetchone()
 
-    # USUÁRIO (só vê os próprios e não ocultados)
     elif nivel == 0:
         cursor.execute("""
             SELECT
@@ -368,8 +382,8 @@ def ticket_detail(ticket_id):
         """, (ticket_id, session['user_id']))
         ticket = cursor.fetchone()
 
-    # ATENDENTE (vê aberto + os dele)
     else:
+        # Atendente: pode ver aberto (fila) OU os que ele atende
         cursor.execute("""
             SELECT
                 tickets.id,
@@ -399,21 +413,20 @@ def ticket_detail(ticket_id):
 
     conn.close()
 
-    # Se não achou (sem permissão)
     if not ticket:
         if status == "Em andamento":
-            flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.")
+            flash(f"Chamado Nº: {ticket_id} está sendo atendido por {atendente}.", "warning")
         elif status == "Fechado":
-            flash(f"Chamado Nº: {ticket_id} foi encerrado por {atendente}.")
+            flash(f"Chamado Nº: {ticket_id} foi encerrado por {atendente}.", "info")
         else:
-            flash(f"Chamado Nº: {ticket_id} não encontrado.")
+            flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
     return render_template('ticket_detail.html', ticket=ticket)
 
 
 # ============================================================
-# BUSCAR CHAMADO POR NÚMERO
+# BUSCAR CHAMADO PELO NÚMERO
 # ============================================================
 @app.route('/buscar-ticket', methods=['GET'])
 def buscar_ticket():
@@ -423,11 +436,11 @@ def buscar_ticket():
     ticket_id = request.args.get('ticket_id', '').strip()
 
     if not ticket_id:
-        flash("Digite o número do chamado.")
+        flash("Digite o número do chamado.", "warning")
         return redirect(url_for('dashboard'))
 
     if not ticket_id.isdigit():
-        flash("Digite apenas o número do chamado. Ex: 12")
+        flash("Digite apenas o número do chamado. Ex: 12", "error")
         return redirect(url_for('dashboard'))
 
     ticket_id = int(ticket_id)
@@ -438,38 +451,29 @@ def buscar_ticket():
     cursor.execute("""
         SELECT
             tickets.id,
-            tickets.status,
-            tickets.is_hidden,
-            attendant.username
+            tickets.is_hidden
         FROM tickets
-        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
         WHERE tickets.id = ?
     """, (ticket_id,))
     ticket = cursor.fetchone()
     conn.close()
 
     if not ticket:
-        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    status = ticket[1]
-    is_hidden = ticket[2]
-    atendente = ticket[3] or "—"
-
-    # Ocultado -> admin pode ver, outros não
-    if is_hidden == 1:
-        if session.get('nivel') == 2:
-            return redirect(url_for('ticket_detail', ticket_id=ticket_id))
-
-        flash(f"Chamado Nº: {ticket_id} não encontrado.")
+    # Se ocultado:
+    # - admin pode abrir
+    # - outros não
+    if ticket['is_hidden'] == 1 and session.get('nivel') != 2:
+        flash(f"Chamado Nº: {ticket_id} não encontrado.", "error")
         return redirect(url_for('dashboard'))
 
-    # Não ocultado -> tenta abrir normal
     return redirect(url_for('ticket_detail', ticket_id=ticket_id))
 
 
 # ============================================================
-# FUNÇÃO DE PAGINAÇÃO (GENÉRICA)
+# PAGINAÇÃO POR STATUS (USADA NAS 3 TELAS)
 # ============================================================
 def paginar_por_status(query_base, params_base, page):
     offset = (page - 1) * PER_PAGE
@@ -477,13 +481,11 @@ def paginar_por_status(query_base, params_base, page):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute(f"SELECT COUNT(*) FROM ({query_base})", params_base)
-    total = cursor.fetchone()[0]
+    cursor.execute(f"SELECT COUNT(*) AS total FROM ({query_base})", params_base)
+    total = cursor.fetchone()['total']
 
-    cursor.execute(
-        query_base + " ORDER BY tickets.id DESC LIMIT ? OFFSET ?",
-        params_base + (PER_PAGE, offset)
-    )
+    cursor.execute(query_base + " ORDER BY tickets.id DESC LIMIT ? OFFSET ?",
+                   params_base + (PER_PAGE, offset))
     itens = cursor.fetchall()
 
     conn.close()
@@ -581,7 +583,7 @@ def fila():
     andamento_page = int(request.args.get('andamento_page', 1))
     fechados_page = int(request.args.get('fechados_page', 1))
 
-    base_abertos = """
+    base_select = """
         SELECT
             tickets.id,
             tickets.titulo,
@@ -600,69 +602,22 @@ def fila():
         LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
         LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
         WHERE tickets.is_hidden = 0
-          AND tickets.status = 'Aberto'
     """
 
     abertos, abertos_has_prev, abertos_has_next = paginar_por_status(
-        base_abertos,
+        base_select + " AND tickets.status = 'Aberto'",
         (),
         abertos_page
     )
 
-    base_andamento = """
-        SELECT
-            tickets.id,
-            tickets.titulo,
-            tickets.descricao,
-            tickets.status,
-            tickets.created_at,
-            tickets.started_at,
-            tickets.closed_at,
-            tickets.is_hidden,
-            creator.username,
-            attendant.username,
-            hider.username,
-            tickets.hidden_at
-        FROM tickets
-        JOIN users AS creator ON tickets.user_id = creator.id
-        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-        WHERE tickets.is_hidden = 0
-          AND tickets.status = 'Em andamento'
-          AND tickets.attendant_id = ?
-    """
-
     andamento, andamento_has_prev, andamento_has_next = paginar_por_status(
-        base_andamento,
+        base_select + " AND tickets.status = 'Em andamento' AND tickets.attendant_id = ?",
         (session['user_id'],),
         andamento_page
     )
 
-    base_fechados = """
-        SELECT
-            tickets.id,
-            tickets.titulo,
-            tickets.descricao,
-            tickets.status,
-            tickets.created_at,
-            tickets.started_at,
-            tickets.closed_at,
-            tickets.is_hidden,
-            creator.username,
-            attendant.username,
-            hider.username,
-            tickets.hidden_at
-        FROM tickets
-        JOIN users AS creator ON tickets.user_id = creator.id
-        LEFT JOIN users AS attendant ON tickets.attendant_id = attendant.id
-        LEFT JOIN users AS hider ON tickets.hidden_by = hider.id
-        WHERE tickets.is_hidden = 0
-          AND tickets.status = 'Fechado'
-          AND tickets.attendant_id = ?
-    """
-
     fechados, fechados_has_prev, fechados_has_next = paginar_por_status(
-        base_fechados,
+        base_select + " AND tickets.status = 'Fechado' AND tickets.attendant_id = ?",
         (session['user_id'],),
         fechados_page
     )
@@ -774,7 +729,7 @@ def admin():
 
 
 # ============================================================
-# INICIAR APP
+# RUN
 # ============================================================
 if __name__ == '__main__':
     app.run(debug=True)
